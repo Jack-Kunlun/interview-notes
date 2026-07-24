@@ -73,6 +73,22 @@ app.directive('permission', {
 <button v-permission="'user:delete'">删除</button>
 ```
 
+### 💬 面试深度
+
+**标准回答**：RBAC 核心是用户→角色→权限三层模型，角色是权限的集合，用户通过角色间接获得权限，这样管理员只需要调整角色就能批量生效。前端落地上，路由层面通过接口拉菜单数据，用 `router.addRoute` 动态注册，按钮层面用自定义指令 `v-permission` 控制显隐，路由守卫 `beforeEach` 统一做 Token 校验和权限路由加载，整条链路从"能不能进页面"到"能不能点按钮"全覆盖。
+
+**追问预判**：
+
+1. **「`addRoute` 注册的动态路由，用户刷新页面后路由就丢了，怎么处理？」** —— 核心思路是路由持久化 + 守卫恢复。刷新后 Vue Router 实例重置，但 pinia store 可以从 localStorage 恢复 token 和 roles；在 `beforeEach` 里检查 `rolesLoaded` 标记，如果为 false 就重新调接口拉菜单、重新 `addRoute`，然后再 `next(to.fullPath)` 回到目标页，用户无感知。
+
+2. **「`v-permission` 用 `el.remove()` 移除 DOM，如果用户权限变化了怎么恢复？」** —— `mounted` 只执行一次，remove 后就真没了。改进方案：要么用 `el.style.display = 'none'` 保留节点，要么把权限判断逻辑放在 `updated` 钩子里，配合响应式权限列表做动态切换；或者干脆不用指令，改封装一个 `<PermissionGuard>` 组件用 `v-if`，更符合 Vue 响应式心智。
+
+**源码在哪**：Vue Router 的 `addRoute` 实现在 `src/router.ts` 的 `addRoute` 方法中，底层调用 `matcher.addRoute` 将路由记录插入 matcher 的路由映射表；`removeRoute` 对应 `matcher.removeRoute`，通过 name 查找并删除。权限指令在 Vue 源码中没有内置实现，完全由业务侧封装，核心依赖 Vue 的 `app.directive` API（源码 `packages/runtime-core/src/directives.ts`）。
+
+**踩过的坑**：早期项目里把 `v-permission` 指令只写在 `mounted` 钩子，用 `el.remove()` 移除按钮；后来加了"切换角色"功能，用户切到高权限角色后按钮没回来，因为 DOM 节点已经被物理删除了。修复方式是把 `el.remove()` 改成 `el.style.display = 'none'`，并在 `updated` 里根据最新 permissions 恢复 `display`，同时配合角色切换时强制重新渲染路由页面。
+
+**项目选型**：RBAC 适合绝大多数后台管理系统，够用且实现简单；如果业务需要"用户只能看自己部门 + 创建时间在 30 天内"这种带属性的规则，就得升级到 ABAC（Attribute-Based Access Control），但复杂度高很多，小项目慎入。
+
 ## 进阶考点 ⭐⭐
 
 ### Token 无感刷新：双 Token 方案（Access Token + Refresh Token）
@@ -104,3 +120,18 @@ Access Token 设置较短过期时间（15-30 分钟）降低泄露风险，Refr
 
 微前端场景下，主应用（基座）负责登录、Token 管理和权限数据获取，子应用不重复实现鉴权逻辑。主应用通过 props 或全局状态（如 qiankun 的 `initGlobalState`）将 token、roles、permissions 下发给子应用。子应用在 `mount` 生命周期中接收权限上下文，再独立执行自己的路由守卫和按钮权限判断，保持各子应用权限逻辑自治。
 
+### 💬 面试深度
+
+**标准回答**：Token 无感刷新的核心是双 Token —— Access Token 短期有效（15-30 分钟）用于日常请求，Refresh Token 长期有效（7-30 天）专门用来换新 Access Token。落地时在 axios 响应拦截器里统一捕获 401，拿 Refresh Token 调刷新接口，成功后更新本地存储，再把刚才失败的那个请求重放出去，用户完全无感知。多租户方面，前端主要解决"怎么识别当前是哪个租户"——要么看子域名 `{tenant}.example.com`，要么看路径前缀 `/tenant-a/dashboard`，然后把这个租户 ID 注入到所有请求头里，后端据此做数据隔离。
+
+**追问预判**：
+
+1. **「同一时间有 5 个并发请求全部返回 401，会不会触发 5 次刷新接口？」** —— 这就是经典的并发刷新问题。解决方式是加一把"刷新锁"：拦截器里用一个 `isRefreshing` 标记 + Promise 等待队列。第一个 401 进来时，设置 `isRefreshing = true` 并发起刷新请求；后续 401 进来发现锁已存在，不重复发刷新请求，而是把自己的 resolve/reject 塞进队列，等刷新完成后统一 `queue.forEach(resolve)` 批量重放。代码层面就是一个 pending 的 Promise 数组，刷新成功后全部 resolve。
+
+2. **「Refresh Token 也过期了怎么办？用户按 F5 刷新页面时怎么判断？」** —— Refresh Token 过期说明用户已经长期不活跃，直接清空本地存储并跳转登录页。前端无法直接解析 Token 的过期时间（JWT 的 exp 是 UTC 时间戳），一般做法是在 `beforeEach` 里加一层判断：如果 token 解码后发现 exp < Date.now()/1000，说明已过期，直接清空 state 跳登录，避免发一个必然 401 的无意义请求。
+
+**源码在哪**：axios 拦截器链的核心实现在 `lib/core/Axios.ts` 的 `request` 方法中，拦截器通过 `InterceptorManager`（`lib/core/InterceptorManager.ts`）以栈的形式管理 —— 请求拦截器用 `unshift` 插到栈顶（后注册先执行），响应拦截器用 `push` 追加到栈底（先注册先执行）。刷新锁属于业务层装修，不是 axios 内置能力。
+
+**踩过的坑**：最早做 Token 刷新时，偷懒用 `setTimeout(fn, 25 * 60 * 1000)` 每 25 分钟定时刷新。结果用户在浏览器切到别的 tab 再切回来时，Chrome 对后台 tab 的定时器做了节流（最小间隔 1 秒甚至更长），定时器完全不准，导致 Token 静默过期。正确做法是抛弃定时器方案，完全依赖 axios 响应拦截器被动判断 401 状态码 + 刷新锁机制，不管用户切不切后台、什么时候回来，只要请求发出去了就能兜底。
+
+**项目选型**：多租户数据隔离三选一 —— 独立数据库最安全但运维成本高，适合金融/医疗等强合规场景；共享数据库 + 独立 Schema 折中，一个实例多套 schema，成本适中；共享表 + `tenant_id` 字段最省钱，但代码里必须 100% 覆盖 WHERE 条件，漏一个就是跨租户数据泄露事故，适合内部工具或小体量 SaaS 起步阶段。

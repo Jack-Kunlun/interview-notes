@@ -31,6 +31,21 @@ const sorted = useMemo(() => [...data].sort(cmp), [data])
 const inputRef = useRef<HTMLInputElement>(null)
 ```
 
+
+### 💬 面试深度
+
+**标准回答**：React Hooks 让函数组件拥有了状态管理和副作用处理能力。`useState` 用于声明状态变量，`useEffect` 管理副作用（数据请求、订阅、DOM 操作），`useCallback` 和 `useMemo` 分别缓存函数引用和计算结果以配合 `React.memo` 做性能优化，`useRef` 则提供跨渲染周期保持引用的容器。它们的核心价值在于让逻辑复用变得更简单——自定义 Hook 可以封装任何有状态逻辑，这是类组件无法优雅做到的。
+
+**追问预判**：
+- Q: "`useCallback` 和 `useMemo` 的区别是什么？" — `useCallback` 缓存函数本身（如 `() => doSomething(a)`），`useMemo` 缓存函数的执行结果（如 `compute(data)`）。`useCallback(fn, deps)` 等价于 `useMemo(() => fn, deps)`。
+- Q: "为什么 Hooks 不能放在条件语句中？" — React 依赖 Hook 的调用顺序来关联组件多次渲染之间的状态，条件调用会打乱顺序导致状态错乱。
+
+**源码在哪**：`packages/react/src/ReactHooks.js`（Hook 的 dispatcher 定义），`packages/react-reconciler/src/ReactFiberHooks.js`（Fiber 中 Hook 链表的实现，包括 mount/update 阶段）。
+
+**踩过的坑**：在 `useEffect` 中忘记清理定时器/订阅，导致组件卸载后仍在执行副作用并尝试更新已卸载组件的状态，控制台报 `Can't perform a React state update on an unmounted component` 警告。修复：在 `useEffect` 的回调中返回清理函数 `() => clearInterval(timer)`。
+
+**项目选型**：坚持使用函数组件 + Hooks 而非类组件，因为逻辑复用（自定义 Hook）比 HOC/render props 模式更简洁直观，且团队学习曲线更低。
+
 ### 闭包陷阱与解决方案（`useRef` 保存最新值）
 
 当 `useEffect` 依赖为空数组时，回调捕获的是首次渲染的变量值（闭包），后续更新不会反映到定时器或事件监听中。解决方案是用 `useRef` 保存最新值，每次渲染同步 ref.current，回调中始终读取最新的 ref。
@@ -51,6 +66,19 @@ useEffect(() => {
 }, [])
 ```
 
+
+### 💬 面试深度
+
+**标准回答**：React 的闭包陷阱源于函数组件每次渲染都会创建新的闭包，当 `useEffect` 或 `useCallback` 的依赖数组为空或遗漏时，回调中捕获的变量永远是旧值。解决方案有三种：一是正确声明依赖让回调随值更新而重建；二是用 `useRef` 保存最新值，在回调中始终读取 `ref.current`；三是使用 `useReducer` 将状态更新逻辑外置，dispatch 函数本身是稳定的引用。
+
+**追问预判**：
+- Q: "`useRef` 解法和正确依赖数组各有什么适用场景？" — 需要读取最新值但不触发重新执行副作用时用 `useRef`（如轮询、WebSocket 回调）；需要副作用随值变化而重新执行时用依赖数组（如根据 ID 重新请求数据）。
+- Q: "为什么 `useReducer` 能避免闭包陷阱？" — dispatch 函数在每次渲染时保持引用稳定，且 reducer 接收的是最新 state 快照而非闭包中的旧值，因此不会过期。
+
+**踩过的坑**：用 `useCallback` 包裹回调但忘记声明依赖 `[count]`，结果传给子组件的函数永远引用初始 `count=0`。子组件内部操作看似正常（因为传入了最新 props），但回调中读取的 count 始终为 0，导致提交的数据总是初始值。修复：正确声明依赖数组或使用函数式更新 `setCount(c => c + 1)`。
+
+**项目选型**：面对复杂状态逻辑时倾向 `useReducer` 而非多个 `useState` + `useRef` 组合，因为 reducer 天然规避闭包陷阱且逻辑集中可测试。
+
 ### 组件通信：props / Context / 状态管理（Zustand / Redux Toolkit）
 
 React 组件通信按距离分层：父子间用 props 单向传递（父→子数据，子→父回调）；跨层级用 Context 注入全局主题/语言/用户信息；复杂应用状态用 Zustand（轻量、无 boilerplate）或 Redux Toolkit（可预测状态容器、DevTools 时间旅行调试）。
@@ -61,6 +89,19 @@ React 组件通信按距离分层：父子间用 props 单向传递（父→子�
 | Context | 跨层级（主题、语言、鉴权） | 避免 props drilling |
 | Zustand | 中小型应用 | 极简 API、TS 友好 |
 | Redux Toolkit | 大型/协作应用 | 规范性强、中间件生态 |
+
+
+### 💬 面试深度
+
+**标准回答**：React 组件通信遵循单向数据流原则：父传子用 props，子传父用回调函数。跨层级场景用 Context 避免 props drilling，但 Context 适合低频更新的全局状态（主题、语言、用户信息）。高频更新的复杂状态应使用 Zustand 或 Redux Toolkit，它们基于发布-订阅模式实现精准渲染，不会像 Context 那样导致大范围重渲染。
+
+**追问预判**：
+- Q: "什么时候该用 Context，什么时候该用状态管理库？" — Context 适合读多写少的全局配置（主题、语言、权限），状态管理库适合读写频繁的业务数据（购物车、表单、列表筛选），因为 Context 的 value 一旦变化所有消费者都会重渲染。
+- Q: "Zustand 为什么比 Context 更适合高频更新？" — Zustand 基于 `useSyncExternalStore` 实现组件级订阅，只有真正使用了变化数据的组件才会重渲染，而不是整个 Provider 子树。
+
+**踩过的坑**：把用户信息、权限、主题全部塞进一个 `AppContext`，结果任何一个小字段变化（如主题切换）都导致整棵树重渲染，页面出现明显卡顿。修复：拆分为 `AuthContext`、`ThemeContext`、`PermissionContext`，各自独立更新。
+
+**项目选型**：中小型项目用 Zustand 而非 Redux Toolkit，因为 Zustand API 极简（无 Provider 包裹、无 action type 常量、无 reducer 样板），TypeScript 推断也很自然。
 
 ### JSX 本质：`React.createElement` → 虚拟 DOM
 
@@ -78,6 +119,21 @@ React.createElement('div', { className: 'box' },
 // 对应的虚拟 DOM 对象结构
 { type: 'div', props: { className: 'box', children: [...] } }
 ```
+
+
+### 💬 面试深度
+
+**标准回答**：JSX 本质是 `React.createElement(type, props, ...children)` 的语法糖，编译后生成描述 UI 结构的 JS 对象——即虚拟 DOM。React 的协调算法（Reconciliation）通过对比新旧虚拟 DOM 树找到差异，再批量更新真实 DOM。这套机制让开发者用声明式的方式描述 UI，而无需手动操作 DOM。现代 React 项目中，`@babel/preset-react` 或 `@vitejs/plugin-react` 负责在构建时把 JSX 编译为 `React.createElement`（或 React 17+ 的 `jsx`/`jsxs` 运行时）。
+
+**追问预判**：
+- Q: "React 17 的 `jsx` 运行时和 `React.createElement` 有什么区别？" — React 17 引入新的 JSX 转换，编译为 `import { jsx } from react/jsx-runtime`，不再需要手动 `import React from react`，且编译产物更小、性能略有提升。
+- Q: "虚拟 DOM 一定比真实 DOM 快吗？" — 不一定。虚拟 DOM 的 Diff 有额外开销，简单场景下直接操作 DOM 更快。虚拟 DOM 的价值在于声明式编程体验和跨平台能力（React Native），而非绝对的性能优势。
+
+**源码在哪**：编译侧在 `@babel/plugin-transform-react-jsx` 或 `packages/react/src/jsx/ReactJSXElement.js`（React 17+ 的新 JSX 运行时），虚拟 DOM 创建在 `packages/react/src/ReactElement.js`。
+
+**踩过的坑**：在 JSX 中写了 `class` 而非 `className`，React 不报错但在 DOM 上未生效，因为 `class` 是 JS 保留字。React 会在控制台输出警告但容易漏掉。修复：统一使用 `className`，配置 ESLint 规则 `react/no-unknown-property` 可提前检测。
+
+**项目选型**：选择 React 而非 Vue 的原因是团队在 JSX 的表达能力上更舒适——JSX 是 JS 的超集，不需要额外学习模板指令语法，复杂的条件渲染和逻辑组合更自然。
 
 ## 进阶考点 ⭐⭐
 
@@ -261,6 +317,19 @@ const userTransform = createTransform(
 | 数据类型 | 仅字符串 | 字符串（自动 JSON 序列化） |
 | 安装方式 | `redux-persist/lib/storage` | `@react-native-async-storage/async-storage` |
 
+
+### 💬 面试深度
+
+**标准回答**：`redux-persist` 是 Redux 状态持久化的标准方案，核心是通过 `persistReducer` 拦截 reducer 的输出并同步写入 Storage，应用启动时通过 `REHYDRATE` action 恢复已保存状态。配置上需要关注三点：用 `whitelist` 精确控制持久化的 reducer 避免存储敏感数据；用 `serializableCheck` 忽略 persist 内置 action 防止序列化检查报错；通过 `PersistGate` 确保在状态恢复完成前不渲染可能依赖持久化数据的组件。
+
+**追问预判**：
+- Q: "持久化大量数据（>5MB）时怎么办？" — LocalStorage 通常限制 ~5MB，大数据场景应使用 IndexedDB 作为存储引擎（`redux-persist-indexeddb-storage`），或仅持久化关键字段 + 服务端作为主要数据源。
+- Q: "如何处理持久化数据的版本迁移？" — 使用 `createMigrate` + 版本号，在 `persistConfig` 中配置 `version` 和 `migrate` 函数，每次发布通过版本号逐步迁移旧数据结构。
+
+**踩过的坑**：把整个 `rootReducer` 全量持久化到 localStorage，结果某次上线改了 state 结构，用户浏览器里的旧结构导致 `REHYDRATE` 后应用白屏（类型不匹配）。修复：只 `whitelist: ['auth']` 持久化 token，其余状态每次启动从服务端重新获取；关键字段用版本号做迁移。
+
+**项目选型**：选择 `redux-persist` 而非手写 `localStorage.setItem` 的原因是它自动处理序列化/反序列化、与 Redux 中间件集成、提供 `PersistGate` 延迟渲染和迁移机制——手写容易遗漏边界情况。
+
 ---
 
 ## MobX ⭐⭐
@@ -379,6 +448,21 @@ const TodoList = observer(({ store }: { store: TodoStore }) => {
 | TypeScript | 类写法天然友好 | RTK 内置类型推断 |
 | 学习曲线 | 中等（响应式概念） | 中等（数据流概念） |
 
+
+### 💬 面试深度
+
+**标准回答**：MobX 是基于观察者模式的响应式状态管理库，核心理念是任何源自应用状态的东西都应自动获得。通过 `makeAutoObservable` 声明可观察状态，`computed` 自动缓存派生值，`observer` 包裹 React 组件实现精准重渲染——只有组件渲染期间实际读取的 observable 变化才会触发更新。与 Redux 的不可变范式不同，MobX 允许直接 mutate 状态，更接近 Vue 的响应式模型。
+
+**追问预判**：
+- Q: "MobX 的 `observer` 如何知道该重渲染哪个组件？" — `observer` 会在组件渲染时追踪哪些 observable 被读取（依赖收集），当这些 observable 变化时 MobX 精准通知对应组件，粒度细到属性级别。这比 Redux 的 selector + 浅比较更高效。
+- Q: "MobX 的项目为什么不流行了？" — React 18 的并发特性（useTransition 等）与 MobX 的 mutable 数据模型存在兼容风险；同时 Redux Toolkit + RTK Query 大幅降低了 Redux 的样板代码，弥补了最大短板；此外 Zustand 等更轻量的方案也在蚕食 MobX 的市场。
+
+**源码在哪**：核心在 `mobx` 包的 `src/core/observable.ts`、`src/core/derivation.ts`（computed），React 绑定在 `mobx-react-lite` 的 `src/observer.ts`。
+
+**踩过的坑**：在 MobX strict 模式下忘记用 `action` 包裹异步回调中的状态修改，导致报错。MobX 默认要求所有 observable 修改必须在 action 内完成以保证变更可追踪和批量提交。修复：对异步回调中的赋值也用 `runInAction(() => { this.data = data })` 包裹。
+
+**项目选型**：当项目有复杂的领域模型和大量派生计算（如仪表盘、实时数据看板）时选 MobX 而非 Redux，因为 computed 的自动依赖追踪和缓存比手动写 reselect selector 更自然高效。
+
 ---
 
 ## 常用 Hooks 深入 ⭐⭐⭐
@@ -489,6 +573,21 @@ function Parent() {
 | `useImperativeHandle` | 限制子组件暴露的方法 | 只暴露 submit/reset，隐藏内部 state |
 | 二者组合 | 命令式 API 封装 | 表单校验、动画控制、媒体播放器 |
 
+
+### 💬 面试深度
+
+**标准回答**：`useContext` 解决跨层级数据传递问题，但有一个关键性能陷阱——Provider value 变化会导致所有消费者重渲染，即使该消费者只用到了 value 中的某一个字段。解决方案是拆分 Context（如 ThemeContext + UserContext）或将 value 用 `useMemo` 包一层。`forwardRef` 配合 `useImperativeHandle` 则用于暴露子组件的命令式 API，比如表单校验、焦点控制——这在封装 UI 组件库时非常常见。
+
+**追问预判**：
+- Q: "Context 拆分到什么粒度算合适？" — 按更新频率和职责拆分：频繁变化的数据（如当前选中项）和基本不变的数据（如主题）不应放在同一个 Context；同时读操作和写操作也可以拆分为两个 Context（如 `ThemeValueContext` + `ThemeActionContext`），这样只需要写操作而不需要读最新值的组件就不会被写操作触发重渲染。
+- Q: "`useImperativeHandle` 是否违背了 React 的数据流理念？" — 有一定程度，但它是逃生舱——当声明式方式无法满足需求时（如表单校验、滚动到某个位置、视频播放控制），用命令式 API 是必要的。关键是不滥用：能用 props/state 解决的优先声明式。
+
+**源码在哪**：`useContext` 在 `packages/react-reconciler/src/ReactFiberHooks.js` 的 `readContext` 函数，`forwardRef` 在 `packages/react/src/ReactForwardRef.js`，`useImperativeHandle` 在 `packages/react-reconciler/src/ReactFiberHooks.js`。
+
+**踩过的坑**：在一个大型表单中把整个表单状态（几十个字段）放进一个 Context，每次输入一个字符整个表单树 30+ 个字段组件全部重渲染，输入明显卡顿。修复：将表单拆分为多个子 Context（基本信息 Context、地址 Context、附件 Context），各自独立更新。
+
+**项目选型**：对于跨组件表单校验需求，选择 `forwardRef` + `useImperativeHandle` 暴露校验方法而非全局状态管理——因为校验是命令式操作（submit 时触发一次），不需要作为状态驱动 UI 渲染。
+
 ### `useDeferredValue` / `useTransition`：React 18 并发特性
 
 这两个 Hook 的核心思路都是"区分紧急/非紧急更新"，让高优先级交互（输入、点击）不被低优先级渲染（列表过滤、图表重绘）阻塞。
@@ -544,6 +643,21 @@ function FilteredList({ query, items }: { query: string; items: Item[] }) {
 | isPending | ✅ 内置 `isPending` | ❌ 手动对比 `query !== deferredQuery` |
 | 使用场景 | 你能控制 setState 的地方 | 值来自 props / 第三方 Hook，无法控制其 setState |
 | 本质 | 降低 setState 的优先级 | 对"收到的值"做延迟快照 |
+
+
+### 💬 面试深度
+
+**标准回答**：`useTransition` 和 `useDeferredValue` 都是 React 18 并发特性的核心 API，解决同一类问题——让高优先级更新（如用户输入）不被低优先级更新（如搜索结果渲染）阻塞。关键区别在控制权：`useTransition` 让你主动标记这个 setState 是非紧急的，适合你能直接控制状态更新的场景；`useDeferredValue` 则被动接收一个值并返回其滞后版本，适合值来自 props 或第三方 Hook 你无法控制其 setState 的场景。
+
+**追问预判**：
+- Q: "`useDeferredValue` 和 debounce/throttle 有什么区别？" — debounce 基于固定时间延迟（如 300ms），在延迟期间 UI 完全冻结不更新；`useDeferredValue` 基于 React 的并发调度，会在浏览器空闲时尽快完成滞后渲染，理论上响应更快且不会出现等 300ms 突然刷新的体验断层。
+- Q: "什么场景不适合用 `useTransition`？" — 需要立即反馈的更新不应包裹在 `startTransition` 中（如输入框的值本身、按钮的 disabled 状态）；此外，`useTransition` 标记的更新仍会被更高优先级更新打断，如果你的非紧急更新必须完整执行（如支付流程），应使用 `flushSync`。
+
+**源码在哪**：`useTransition` 在 `packages/react/src/ReactHooks.js` 的 dispatcher 中定义，实际调度逻辑在 `packages/react-reconciler/src/ReactFiberHooks.js` 和 `packages/scheduler/src/forks/Scheduler.js`（优先级调度）。
+
+**踩过的坑**：在搜索场景中用 `useTransition` 包裹了 `setQuery`（输入框的值更新），导致输入框中文字显示延迟，用户感觉输入卡顿。正确做法：只把 `setSearchResults` 放在 `startTransition` 里，`setQuery` 保持同步更新。
+
+**项目选型**：当搜索结果渲染耗时较大（>100ms）且有自己控制的搜索状态时用 `useTransition`（有 `isPending` 方便展示 loading）；当搜索关键词来自第三方组件（如 URL 参数、上层传入的 props）时用 `useDeferredValue`。
 
 ### `useId`：生成唯一 ID
 
@@ -703,3 +817,18 @@ function App() {
 | React 18 中型项目 | 逐步迁移（React 19 保持高度向后兼容） |
 | 重度依赖 `forwardRef` 的组件库 | 可放心升级，`forwardRef` 仍可用，新代码可直接用 ref prop |
 | Next.js 项目 | 升级到 Next.js 15 + React 19 获取完整 RSC + Server Actions 体验 |
+
+
+### 💬 面试深度
+
+**标准回答**：React 19 的核心升级可以归纳为三点：一是 Server Components（RSC）正式稳定，让组件可以在服务端渲染并序列化后发送到客户端，大幅减少客户端 JS 体积；二是 Actions API（`useActionState`、`useFormStatus`、`useOptimistic`）让表单处理、loading 状态、乐观更新一体化为声明式写法；三是 DX 层面的简化——ref 可以直接作为 prop 传递不再需要 `forwardRef`，Context 可以直接用作 Provider 无需写 `.Provider`，`use()` hook 支持在渲染中直接读取 Promise 且可以条件调用。
+
+**追问预判**：
+- Q: "React 19 的 `use()` hook 和 `await` 有什么区别？" — `use()` 可以在组件渲染函数体中直接调用（类似 Hook），它会暂停组件渲染直到 Promise resolve，但 React 可以在此期间继续渲染其他组件。`await` 只能在 async 函数中使用，且会让整个 async 组件函数暂停。`use()` 还能条件调用，突破了传统 Hook 的限制。
+- Q: "React 19 的 Server Components 是否意味着无需 CSR？" — 不是。RSC 和 CSR 是互补的：RSC 处理数据获取和静态内容渲染（在服务端），客户端组件负责交互（`onClick`、`useState` 等）。最佳实践是尽量把组件放在服务端，只在需要交互时添加 `use client` 指令。
+
+**源码在哪**：React 19 的 `use()` 在 `packages/react/src/ReactHooks.js` 和 `packages/react-reconciler/src/ReactFiberHooks.js`；Server Components 在 `packages/react-server-dom-webpack` 和 `packages/react-server-dom-turbopack`。
+
+**踩过的坑**：升级 React 19 后旧代码中大量的 `forwardRef` 虽仍能工作，但新加入的开发者看到文档说 ref 可以直接作为 prop 后混用了两种写法，导致代码风格不一致，Code Review 时出现混淆。修复：团队达成协议——新组件统一使用 ref prop 直传，旧组件逐步迁移；配置 ESLint 规则 `react/no-forward-ref`（warn 级别）提醒逐步消除。
+
+**项目选型**：新项目直接选 React 19 而非停留在 18，因为 Actions API 和 `use()` 大幅简化了表单和异步数据处理代码，且向后兼容性良好，迁移成本极低。

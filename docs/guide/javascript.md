@@ -52,6 +52,21 @@ c.increment()  // 2
 
 **内存注意**：闭包会让被引用的外层变量无法被 GC 回收，不需要时置 `null` 释放引用。
 
+
+### 💬 面试深度
+
+**标准回答**：闭包是函数与其词法环境的绑定——即使外层函数已执行完毕并出栈，内层函数仍持有对外层变量的引用，使其不被 GC 回收。JS 引擎在函数创建时保存 `[[Environment]]` 内部属性指向外层词法环境，形成作用域链。闭包的核心价值是数据私有化（模块模式）和状态保持（计数器、缓存），在防抖节流、React Hooks、Vue Composition API 中无处不在。
+
+**追问预判**：
+1. 闭包会导致内存泄漏吗？如何排查？→ 会。当闭包引用大对象或已卸载的 DOM，且闭包本身一直存活（如挂全局变量、未清理的定时器），被引用对象将永不被 GC。排查方法：Chrome DevTools → Memory → Heap Snapshot → 在 Summary 视图中搜索 "closure" / "context"，展开即可看到闭包持有的具体变量。也可用 Performance 面板录制内存时间线，观察到持续增长而无回落。
+2. 如何主动释放闭包内存？→ 将持有闭包的变量置为 `null` 切断引用链。定时器相关闭包要在不需要时 `clearTimeout`/`clearInterval`。DOM 事件监听器需用 `removeEventListener` 解绑。常见泄漏模式：`el.onclick = function() { /* 引用 el.parentNode... */ }` ——即使 el 被移除，闭包仍通过 parentNode 引用整个 DOM 树。
+
+**源码在哪**：V8 中闭包实现涉及 `Context` 对象（存储变量）和 `Scope` 链，相关代码在 `src/ast/scopes.cc`（编译期作用域分析）和 `src/objects/contexts.cc`（运行期上下文对象）。每个函数对象有一个 `context` 槽位指向其创建的词法环境。
+
+**踩过的坑**：在循环中用 `var` 声明变量并通过 `setTimeout` 闭包引用 `i`，所有闭包共享同一个 `i`（函数作用域），最终全部输出 5（而非 0,1,2,3,4）。根因：`var` 没有块级作用域，循环结束后 `i` 只有一个值。修复：① 改用 `let`（块级作用域，每次迭代创建新绑定）；② 用 IIFE 立即捕获当前值 `(function(j) { setTimeout(() => console.log(j)) })(i)`。
+
+**项目选型**：闭包私有变量 vs ES2020 `#` 私有字段 → 闭包方案兼容性好（ES5），适合库/工具函数；新项目用 `#`——V8 有内联缓存优化，且 TypeScript 有完整的类型检查支持。
+
 ### this 指向：默认绑定/隐式绑定/显式绑定/new 绑定的优先级
 
 `this` 的值由**调用方式**决定，不是定义时决定。优先级从高到低：`new` 绑定 > 显式绑定（`call`/`apply`/`bind`）> 隐式绑定（对象方法调用）> 默认绑定（严格模式 `undefined`，非严格 `window`）。箭头函数没有自己的 `this`，直接继承外层词法作用域的 `this`。
@@ -73,6 +88,21 @@ const obj = {
 obj.fn()     // 'obj'
 obj.arrow()  // undefined（window.name，箭头函数继承外层）
 ```
+
+
+### 💬 面试深度
+
+**标准回答**：`this` 的值完全由调用方式决定，与定义位置无关。优先级从高到低：`new` 绑定（创建空对象并绑定）> 显式绑定（`call`/`apply`/`bind`）> 隐式绑定（`obj.fn()` → `obj`）> 默认绑定（严格模式 `undefined`，非严格 `window`）。箭头函数例外——没有自己的 `this`，定义时从外层词法作用域捕获，`call`/`apply`/`bind` 无法改变其 `this`。
+
+**追问预判**：
+1. `bind` 返回的绑定函数再用 `new` 调用，`this` 指向谁？→ `new` 优先级高于 `bind`。`new BoundFn()` 会创建一个新对象作为 `this`，忽略 `bind` 绑定的 `this`（但 `bind` 预设的参数仍然生效）。这是 ES 规范 §9.4.1.3 规定的：bound function 被 `[[Construct]]` 调用时，`this` 用 `new` 创建的对象替换。
+2. 箭头函数适合做 Vue methods 吗？→ 不适合。Vue 会将 methods 中的函数 `this` 绑定到组件实例，但箭头函数从定义时捕获 `this`（此时可能是 `undefined` 或 `window`），`call`/`apply` 也无法覆盖。Vue 官方文档明确警告：不要用箭头函数定义 methods、computed、watch 等选项。
+
+**源码在哪**：语言规范层面（ECMAScript §8.7），不是特定框架。V8 中 `this` 传递依赖 `CallIC`（内联缓存）和 `Builtins::Call` 的调用约定，实现在 `src/builtins/builtins-call.cc`。
+
+**踩过的坑**：React Class 组件中，将方法作为事件回调传递但忘记 `.bind(this)`。方法内访问 `this.setState` 时报 `TypeError: Cannot read property 'setState' of undefined`——因为 class 内部默认严格模式，未绑定的 `this` 为 `undefined`。修复：构造函数中 `this.handleClick = this.handleClick.bind(this)`，或改用箭头函数类属性 `handleClick = () => { ... }`。
+
+**项目选型**：`call` vs `apply` vs `bind` → 立即执行且参数逐个已知用 `call`；立即执行且参数是数组用 `apply`（如 `Math.max.apply(null, arr)`）；延迟执行/预设参数用 `bind`（如事件回调上下文绑定）。
 
 ### 原型链：`__proto__` → `prototype` → `Object.prototype` → `null`
 
@@ -97,6 +127,21 @@ p.xxx             // 沿链到头返回 undefined
 p instanceof Person  // p.__proto__ === Person.prototype → true
 p instanceof Object  // p.__proto__.__proto__ === Object.prototype → true
 ```
+
+
+### 💬 面试深度
+
+**标准回答**：原型链是 JavaScript 实现继承的核心机制。每个对象通过 `[[Prototype]]`（即 `__proto__`）指向其构造函数的 `prototype` 对象，属性查找沿这条链逐级向上，直到 `Object.prototype` → `null` 终止。`Object.prototype` 是所有普通对象的根原型，提供 `toString`、`hasOwnProperty` 等公共方法。构造函数上的 `prototype` 属性和实例上的 `__proto__` 是理解原型链的两条关键线索。
+
+**追问预判**：
+1. `instanceof` 的原理是什么？→ 沿着 `left.__proto__` 链逐级查找，看是否能匹配 `Right.prototype`。等价伪代码：`while (left = left.__proto__) { if (left === Right.prototype) return true; } return false;`。注意：跨 iframe / 不同 JS 上下文时 `instanceof` 会失效，因为每个上下文有独立的全局对象和 `Object.prototype`。
+2. `Object.create(null)` 创建的对象有什么特点？→ 它的 `[[Prototype]]` 是 `null`，不继承 `Object.prototype` 的任何方法（`toString`、`hasOwnProperty`、`isPrototypeOf` 等全部不可用）。这使得它成为理想的"纯字典"——无原型属性污染风险，适合做哈希表、缓存映射。
+
+**源码在哪**：V8 中原型链查找实现在 `src/objects/js-objects.cc` 的 `JSObject::GetProperty` 方法，核心是 `GetPropertyWithReceiver` 沿 prototype 链循环遍历。
+
+**踩过的坑**：用 `for...in` 遍历对象属性做统计，结果多出了 `toString`、`hasOwnProperty` 等原型方法字段。原因：`for...in` 会沿原型链枚举所有可枚举属性（包括继承的）。修复：遍历体内加 `Object.hasOwn(obj, key)` 守卫，或直接改用 `Object.keys()` / `Object.entries()`（只返回自身可枚举属性）。
+
+**项目选型**：原型继承 vs ES6 class → 库/框架底层用原型链（动态灵活、运行时修改、混入 mixin），业务代码用 class（语法清晰、`super` 直白、TypeScript 支持好、符合主流开发习惯）。
 
 ### ES6+：解构、模板字符串、箭头函数、可选链 `?.`、空值合并 `??`
 
@@ -124,6 +169,21 @@ const val = input ?? 'default'            // input 为 null 或 undefined 时才
 console.log(0 || 'fallback')             // 'fallback' —— 0 是 falsy
 console.log(0 ?? 'fallback')             // 0 —— ?? 只拦截 null/undefined
 ```
+
+
+### 💬 面试深度
+
+**标准回答**：ES6（ES2015）及后续版本带来了大量实用特性。`let`/`const` 用块级作用域消除 `var` 的提升陷阱；箭头函数简化语法且从外层继承 `this`；解构让数据提取更简洁；模板字符串支持 `${}` 插值；可选链 `?.` 安全访问深层属性——遇到 `null`/`undefined` 短路返回；空值合并 `??` 只在 `null`/`undefined` 时使用默认值，比 `||` 更精确。这些特性在现代前端框架中已成为默认写法。
+
+**追问预判**：
+1. `?.` 和 `&&` 链式判断有什么区别？→ `?.` 精确短路 `null`/`undefined`，对 `0`/`''`/`false` 等合法 falsy 值正常访问；`&&` 对所有 falsy 值短路，语义过宽。另外 `?.` 不能用于赋值左侧（`obj?.key = x` 语法错误），且短路后不执行后续括号内表达式。
+2. `??` 和 `||` 如何选择？→ `??` 只拦截 `null`/`undefined`，`||` 拦截所有 falsy 值。当 `0`、`''`、`false` 是合法业务值时必须用 `??`。例如：`count ?? 10`（count 为 0 保留 0），而 `count || 10` 会把 0 错误替换为 10。
+
+**源码在哪**：这些是 ECMAScript 语言规范特性，由各引擎实现。可选链在 V8 解析器 `src/parsing/parser-base.h` 中处理为条件跳转字节码。
+
+**踩过的坑**：用 `||` 给函数参数设默认值，把 `0` 和空字符串当成"未传"触发备用值，导致计算结果错误。修复：改用 `??` 或 ES6 默认参数语法 `function fn(count = 10) {}`——默认参数只对 `undefined` 触发，更精确。
+
+**项目选型**：箭头函数 vs 普通函数 → 需要自己的 `this`（Vue methods、原型方法）用普通函数；不需要 `this` 或需继承外层 `this`（React 回调、数组 map/filter）用箭头函数。团队建议：能用箭头的地方优先箭头——更短、没有 `arguments` 副作用。
 
 ## 进阶考点 ⭐⭐
 
@@ -185,6 +245,21 @@ function throttle(fn, delay = 300) {
 }
 ```
 
+
+### 💬 面试深度
+
+**标准回答**：防抖和节流都是高频事件优化的闭包应用。防抖（debounce）的核心是"等你停下来"——每次触发重置计时器，n 秒无新触发才执行，适合搜索联想、窗口 resize 等关注最终结果的场景。节流（throttle）的核心是"固定节奏"——无论触发多频繁，每 n 秒最多执行一次，适合滚动加载、按钮防重复提交等关注过程的场景。
+
+**追问预判**：
+1. 防抖的"首次立即执行"版怎么实现？→ 加 `immediate` 参数控制：首次触发时立即执行 `fn.apply(this, args)`，同时设 `timer` 标记冷却期；冷却期内触发只重置定时器不执行；冷却期结束后重置。Lodash 的 `_.debounce(fn, wait, { leading: true })` 即为此行为。另可选 `trailing: true` 在最后一次触发后补执行。
+2. 时间戳版和定时器版节流的区别？→ 时间戳版（`Date.now() - last`）首次立即执行，停止触发后不再执行；定时器版（`setTimeout`）首次延迟执行，停止触发后会再执行一次尾部调用。实际开发常结合两者：`{ leading: true, trailing: true }`，保证首次和最后一次都被处理。
+
+**源码在哪**：Lodash 的 `debounce.js` 和 `throttle.js`，其中 throttle 本质是 `debounce` 设置了 `maxWait` 参数——在 debounce 内部同时跑一个时间戳限制保证最低频率。
+
+**踩过的坑**：移动端滚动加载更多时用节流 300ms，但快速滑动时 `scrollTop` 在节流窗口内已大幅变化，闭包中捕获的旧值导致计算位置偏差，重复请求同一页。修复：在节流回调内重新获取最新 `scrollTop` 而非依赖闭包旧值；或用"标记位 + 请求完成后重置"替代节流。
+
+**项目选型**：debounce vs throttle → 关注"最终结果"（搜索建议、resize 重排）用 debounce；关注"过程可控"（滚动加载进度、滑动百分比上报）用 throttle。不确定时，lodash `_.throttle(fn, wait, { leading: true, trailing: true })` 是安全默认——覆盖头尾。
+
 ### Promise 链式调用、`Promise.all/race/allSettled/any`、错误传播
 
 Promise 有三种状态：pending → fulfilled / rejected，状态不可逆。`.then()` 返回新 Promise 实现链式调用。`.catch()` 能捕获链上任意位置的错误。四个并发静态方法各有适用场景，面试高频。
@@ -202,6 +277,21 @@ Promise.allSettled([p1, p2, p3])       // 全部完成（无论成败）→ [{st
 Promise.race([p1, p2, p3])             // 第一个 settle 的结果
 Promise.any([p1, p2, p3])              // 第一个 fulfilled；全 reject → AggregateError
 ```
+
+
+### 💬 面试深度
+
+**标准回答**：Promise 是 ES6 引入的异步编程核心方案——三态不可逆（pending → fulfilled / rejected），`.then()` 返回新 Promise 实现链式调用，`.catch()` 捕获链上任意位置错误。四个并发静态方法覆盖全部协作场景：`Promise.all`（全成功才成功，fail-fast）、`Promise.allSettled`（等全完成，不论成败）、`Promise.race`（取第一个 settled）、`Promise.any`（取第一个成功）。Promise 的本质是将"回调嵌套"变为"链式声明"，终结了回调地狱。
+
+**追问预判**：
+1. `.then(onFulfilled)` 返回一个 thenable 时 Promise 如何处理？→ 进入 Promise Resolution Procedure（`resolvePromise`）：检测返回值 `x`，如果 `x` 是对象/函数且有 `then` 方法，则调用 `x.then(resolve, reject)` 并**递归解析**，直到拿到非 thenable 的最终值。这意味着从 `.then` 返回任意 Promise 库的实例都能正确互操作——thenable 递归解析是 A+ 规范保证所有 Promise 实现兼容的核心设计。
+2. `Promise.all` 一个失败全部挂，实际项目怎么办？→ 两个方案：① 改用 `Promise.allSettled`——等全部 settled 后返回 `[{status, value/reason}]`，按 status 分别处理成功和失败；② 给每个 Promise 提前 `.catch(err => ({ error: err }))` 兜底，让 `all` 永远不会 reject。
+
+**源码在哪**：V8 源码在 `src/builtins/promise-all.tq`（PromiseAll）、`src/builtins/promise-race.tq`、`src/builtins/promise-all-element-closure.tq`（逐个收集结果的回调）。Promise/A+ 规范是面试金标准：https://promisesaplus.com/。
+
+**踩过的坑**：批量请求 5 个接口用 `Promise.all`，其中一个因 DNS 解析失败 reject，其余 4 个成功的请求结果全部丢失，页面白屏。根因：`Promise.all` 的 fail-fast 语义——一旦 reject 立即短路，丢弃其余结果。修复：用 `Promise.allSettled`，过滤 `status === 'fulfilled'` 正常渲染，`rejected` 降级提示"部分数据加载失败"。
+
+**项目选型**：`Promise.all` vs `Promise.allSettled` → 需全部成功才继续（多表单校验）用 `all`；允许部分失败（多数据源聚合、批量上报）用 `allSettled`。`Promise.race` 典型场景：`Promise.race([fetch('/api'), timeout(5000)])` 超时竞速。
 
 ### `async/await` 的生成器本质与错误捕获
 
@@ -590,6 +680,21 @@ function resolvePromise(promise2, x, resolve, reject) {
 
 ---
 
+
+### 💬 面试深度
+
+**标准回答**：手写 Promise 考察对 Promise/A+ 规范的深度理解。核心三要素：① 状态机三态不可逆（pending → fulfilled / rejected）；② `then()` 必须返回新 Promise——每个 `.then()` 创建新的 MyPromise、注册回调到新实例上，这是链式调用的根基；③ `resolvePromise` 处理 thenable 递归解析——检测返回值 `x`，递归展开 thenable 直到拿到普通值，是 A+ 规范最复杂也是最体现设计深度的部分。`Promise.all` 通过计数器 + 按索引存储保证顺序；`Promise.race` 利用状态不可逆保证只取第一个 settle。
+
+**追问预判**：
+1. 时间复杂度分析？→ `then` 链调用 O(n)——每个 `.then()` 追加一个 Promise 对象和回调。`Promise.all` 整体 O(n)——遍历输入数组，每个 Promise 注册一个 `.then()`，结果按索引存储（数组随机访问 O(1)）。`Promise.race` 也是 O(n) 单次遍历。`Promise.allSettled` 同 `all` 为 O(n)。空间复杂度：`Promise.all/allSettled` 需 O(n) 结果数组；pending 状态下 `.then()` 的回调队列在最坏情况下也需 O(n) 空间（全部 then 注册在 pending 时）。
+2. `resolvePromise` 中 `called` 标志位为什么必要？→ 防止 thenable 对象的 `then` 方法不规范，同时调用 `resolve` 和 `reject`（A+ 规范 §2.3.3.3.3 要求只取第一次调用）。如果不用 `called`，恶意或错误的 thenable 可能导致 Promise 状态反复翻转，破坏不可逆约定。这也考察你是否读过规范全文而不只是代码。
+
+**源码在哪**：本文件 `## 手写 MyPromise` 节即为完整实现（对应规范 A+）。V8 中真实 Promise 实现在 `src/builtins/promise-all.tq`、`promise-race.tq`、`promise-all-element-closure.tq` 等文件（Torque 语言）。
+
+**踩过的坑**：`Promise.all` 一个接口超时 reject，其余 4 个成功结果全部丢失。同时手写实现时忘了处理 `Promise.all([])` 空数组边界——规范要求空数组直接 resolve `[]`，漏掉这个细节面试官一眼看出对规范不熟。修复：业务层用 `allSettled`；手写时在 `all` 开头加 `if (arr.length === 0) return resolve([])`。
+
+**项目选型**：手写 Promise vs 原生 Promise → 生产环境永远用原生 Promise（V8 深度优化、微任务调度精确、DevTools 调试支持），手写仅用于面试和理解异步原理。需要取消/超时能力时推荐 `AbortController` + `fetch`。
+
 ## 手写 async/await ⭐⭐⭐
 
 `async/await` 是 JavaScript 异步编程的终极方案，本质是 **Generator + 自动执行器** 的语法糖。理解其原理需要掌握三块知识：Generator 函数的暂停/恢复机制、自动执行器（co）如何递归驱动 Generator、以及 async/await 如何在这两者之上提供更简洁的语法。
@@ -794,3 +899,18 @@ next()                         ← 首次调用
 | 返回值 | co 和 async 都返回 Promise，Generator `return` 的值成为 Promise resolve 值 |
 
 **一句话总结**：`async/await` 让异步代码写起来像同步，底层是 Generator 暂停-恢复 + Promise 异步等待的融合——Generator 负责"同步感"（暂停等结果），自动执行器负责"自动推进"（不等你手动 next），Promise 负责"异步"（不阻塞主线程）。
+
+
+### 💬 面试深度
+
+**标准回答**：`async/await` 本质是 Generator + 自动执行器（co）的语法糖。Generator 通过 `yield` 暂停执行，`next()` 恢复并将参数传回作为 `yield` 的返回值，实现双向通信。自动执行器递归调用 `next()`，当 `yield` 的 value 是 Promise 时等待其 resolve 后将值传回 Generator，实现"等待"效果。`async` 函数始终返回 Promise，`await` 等价于 `yield`，`try/catch` 通过 `g.throw(err)` 将 reject 抛入 Generator。引擎内置的 async/await 在微任务调度上比 co（Promise.then 链）更精确。
+
+**追问预判**：
+1. `await` 后面的代码在微任务中执行吗？→ 是的。`await xxx` 等价于 `Promise.resolve(xxx).then(res => { /* await 后面的代码 */ })`，await 恢复后的代码总是在微任务队列中执行——本轮事件循环的同步代码之后、下一个宏任务之前。
+2. co 执行器的时间复杂度？→ 递归 `next()` 调用链 O(n)，n 为 `yield` 数量。每次 `next()` 追加一个 `.then()`，10 个 `await` 产生 10 层 Promise 嵌套。引擎层面的原生 async/await 做了微任务扁平化优化，不同于简单 polyfill。
+
+**源码在哪**：V8 中 async/await 实现在 `src/builtins/builtins-async-gen.cc` 和 `src/builtins/builtins-async-function.cc`，核心是将 async 函数转换为内置执行器驱动的 Generator。co 库源码见 `tj/co`（GitHub 已归档）。
+
+**踩过的坑**：在 `forEach` 回调中使用 `await`，以为会串行执行，结果所有请求同时发出，服务器瞬时被打爆。根因：`forEach(cb)` 内部同步调用 `cb()`，不等待 Promise——5 个请求并发而非期望的串行。修复：改用 `for...of`（原生支持 await 串行），或用 `await Promise.all(arr.map(async ...))` 显式表达并发意图。
+
+**项目选型**：`async/await` vs `.then()` 链 → 多步顺序依赖、需清晰错误处理的场景用 `async/await`（一个 `try/catch` 包多个 `await`）；纯并发的简单场景用 `Promise.all().then()` 同样简洁。团队统一推荐 `async/await` + `try/catch` 风格。

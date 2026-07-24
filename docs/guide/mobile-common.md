@@ -129,6 +129,26 @@ em 是相对于**当前元素**或**父元素** `font-size` 的倍数单位。�
 
 ---
 
+### 💬 面试深度
+
+**标准回答**：移动端适配的本质是让页面在不同宽度的屏幕上等比缩放。rem 方案通过 JS 动态设置 `html` 的 `font-size`（通常 `font-size = 屏幕宽 / 设计稿宽 × 基准值`，如 375 设计稿下 `100vw/3.75` 让 1rem=100px），所有尺寸用 rem 表达即可随根字号同步缩放。rpx 是小程序专用单位，规定 750rpx 恒等于屏幕宽度，底层自动换算，开发者直接按 750 设计稿写即可。vw/vh 是纯 CSS 视口单位，`100vw` 等于视口宽，配合 `postcss-px-to-viewport` 构建时自动转换，无 JS 依赖、SSR 友好。em 相对父元素字号会嵌套叠加，一般只用于组件内部局部比例（如图标与文字间距），不适合全局适配。
+
+**追问预判**：
+
+- **"rem 和 vw 方案怎么选？"** → rem 兼容性最好、可设最大宽度限制（平板不拉伸），但依赖 JS；vw 纯 CSS、SSR 友好，但无法限制最大宽度，且 vh 受移动端地址栏收起/展开影响会跳动。中大型项目推荐 vw + rem 混合，用 rem 设最大宽度兜底。
+- **"rem 方案的 1rem=100px 这个 100 怎么来的？"** → 设计稿宽度 ÷ 等分数。375 设计稿分 10 等份 = 37.5，但 37.5 不好算，所以放大到 ÷ 3.75 = 100，这样设计稿 16px = 0.16rem，心智负担低。
+
+**源码在哪**：
+
+- `flexible.js` 源码：`node_modules/amfe-flexible/index.js`（阿里开源，约 50 行）
+- `postcss-pxtorem` 转换逻辑：`node_modules/postcss-pxtorem/index.js`
+
+**踩过的坑**：在 H5 中直接用 `rem` 做字号，结果用户手动在系统设置里把字体调到最大后，根字号被系统覆盖，整个页面布局炸裂。**修复**：对根字号设置 `html { font-size: 100px !important; }` 并限制 `-webkit-text-size-adjust: 100%`，确保系统字体缩放不影响 rem 基准。
+
+**项目选型**：小程序直接用 rpx（零配置）；H5 新项目优先 vw 方案（纯 CSS + PostCSS）；需要兼容老安卓 WebView 的选 rem（兼容性最强）。
+
+---
+
 ## 自适应方案对比
 
 移动端屏幕碎片化严重，从 320px 宽的小屏到 428px 的全面屏再到折叠屏，一套代码需要覆盖所有尺寸。以下四种方案各有侧重。
@@ -285,6 +305,26 @@ html {
 
 ---
 
+### 💬 面试深度
+
+**标准回答**：移动端自适应有四大主流方案：rem+flexible.js（JS 动态设根字号，兼容性最好）、vw/vh（纯 CSS，无 JS 依赖）、scale 整体缩放（适合大屏/活动页固定比例还原）、混合方案（各取所长）。实际项目中，rem 方案配合 `postcss-pxtorem` 自动转换，开发只需按设计稿写 px；vw 方案配合 `postcss-px-to-viewport` 同理。关键区别在于 rem 可设 `max-width` 限制平板下不拉伸，vw 做不到——所以混合方案最稳妥：vw 做流式适配 + rem/media-query 做极限兜底。
+
+**追问预判**：
+
+- **"scale 方案有什么致命缺陷？"** → ① 缩放后鼠标事件坐标需要手动换算（`clientX / scale`），事件处理复杂；② 对 SEO 不友好（搜索引擎看到的是缩放前的 DOM）；③ 文本选中、滚动条行为异常；④ 不适合长列表/信息流，只适合固定一屏的大屏可视化。
+- **"为什么 vh 在移动端不靠谱？"** → 移动端浏览器地址栏收起/展开时，`100vh` 会跟着变化，导致页面跳动。解决方案是用 JS 在页面初始化时记录 `window.innerHeight`，注入 CSS 变量 `--vh`，然后用 `calc(var(--vh) * 100)` 代替 `100vh`。
+
+**源码在哪**：
+
+- `flexible.js`：`node_modules/amfe-flexible/index.js`
+- `postcss-px-to-viewport`：`node_modules/postcss-px-to-viewport/index.js`
+
+**踩过的坑**：用 vw 方案做活动页，在 iPad Pro 上 `font-size: 4vw` 变成了 40px+，字号大到离谱。**修复**：给 `html` 设 `max-width` 并在媒体查询中锁定根字号：`@media (min-width: 768px) { html { font-size: calc(768px / 3.75); } }`，或用 CSS `clamp()` 限制字号范围。
+
+**项目选型**：传统 H5 活动页用 rem（成熟稳妥）；现代 WebApp 用 vw（纯 CSS + SSR 友好）；数据大屏/可视化用 scale（像素级还原）；中大型项目用 vw + rem 混合（兼顾灵活与稳定）。
+
+---
+
 ## 1px 边框问题
 
 ### 产生原因
@@ -379,6 +419,26 @@ Retina (DPR=3):  1 CSS px → 3 物理像素  → 明显偏粗
 
 ---
 
+### 💬 面试深度
+
+**标准回答**：Retina 屏下 DPR≥2，CSS `1px` 会被渲染成多个物理像素，看起来比设计师期望的"1 物理像素"粗。最主流方案是伪元素 + `transform: scale(0.5)`：用 `::after` 画出 1px 边框，再用 `scaleY(0.5)` 或 `scale(0.5)` 缩小到物理像素级别。四边框场景则用 `::before` 画 200% 宽高的边框再整体 `scale(0.5)`。这个方案兼容性最好、不侵入布局、支持圆角，是业界首选。
+
+**追问预判**：
+
+- **"伪元素 + transform scale(0.5) 为什么比 viewport 方案好？"** → viewport 方案设 `initial-scale=0.5` 会让整个页面等比缩小，所有元素尺寸、间距、字号都需要重新计算适配，侵入性极高，改动成本大。伪元素方案只影响目标元素，不改变页面整体布局，兼容性一样好但侵入性低得多。
+- **"DPR=3 时 scale(0.5) 够吗？"** → 严格来说 DPR=3 时 `scale(0.33)` 才精确，但实际 `scale(0.5)` 渲染出来的线已经足够细，肉眼几乎看不出与 0.33 的差异。如果追求极致，可用 `@media (-webkit-min-device-pixel-ratio: 3)` 分别设 0.33。
+
+**源码在哪**：
+
+- Vant UI hairline mixin：`node_modules/vant/es/style/hairline.less`
+- WeUI 1px 处理：`node_modules/weui/src/style/base/mixin/setOnepx.less`
+
+**踩过的坑**：使用 `border: 0.5px solid` 直接写半像素，iOS 8+ 支持但安卓大部分机型会把 0.5px 当成 0 不渲染，导致边框消失。**修复**：改用伪元素 + transform 方案，绝不依赖 `0.5px` 直接写 border。
+
+**项目选型**：所有移动端项目统一用伪元素 + transform 方案（最稳）；组件库封装成 mixin（如 Vant 的 `hairline`）；对圆角无要求的简单分割线也可用 `box-shadow: 0 0 0 0.5px`（代码更短）。
+
+---
+
 ## 安全区域适配
 
 iPhone X 开始，苹果引入了刘海屏和底部 Home Indicator 横条，这些区域会遮挡页面内容或被系统手势占用。CSS 通过 `safe-area-inset-*` 环境变量标识"安全区"——即不会被遮挡、可放心放置交互元素的区域。
@@ -468,6 +528,26 @@ iOS 11.0-11.2 使用 `constant()`，iOS 11.2+ 改为 `env()`。兼容写法是�
 
 ---
 
+### 💬 面试深度
+
+**标准回答**：iPhone X 起苹果引入刘海屏和底部 Home Indicator，需要通过 CSS 环境变量 `env(safe-area-inset-*)` 来适配安全区域。关键三步：① `<meta viewport>` 加 `viewport-fit=cover` 让页面撑满全屏；② 对顶部导航用 `padding-top: env(safe-area-inset-top)` 避开刘海；③ 对底部 fixed 元素用 `padding-bottom: env(safe-area-inset-bottom)` 避开横条。兼容 iOS 11.0-11.2 需把 `constant()` 写在 `env()` 前面做降级。
+
+**追问预判**：
+
+- **"为什么 constant() 要放在 env() 前面？"** → CSS 的 fallback 机制：后面的覆盖前面的。iOS 11.0-11.2 只认 `constant()` 不认 `env()`，所以 `constant()` 写在前面生效；iOS 11.2+ 两个都认但 `env()` 在后面所以覆盖生效。顺序反过来的话新版 iOS 会吃到 `constant()` 的旧值。
+- **"非全面屏设备上 safe-area-inset 值是多少？"** → 0。所以放心加 —— 非全面屏设备上 padding 为 0，不影响布局。
+
+**源码在哪**：
+
+- WebKit safe-area-inset 定义：`Source/WebCore/css/CSSValueKeywords.in`
+- iOS WebKit viewport-fit 处理：`Source/WebCore/page/ViewportConfiguration.mm`
+
+**踩过的坑**：底部 fixed 按钮被 iPhone 横条遮挡，用户死活点不到。原因：只设了 `bottom: 0`，没加 `env(safe-area-inset-bottom)`。**修复**：给底部 fixed 元素加 `padding-bottom: env(safe-area-inset-bottom)` 并把 `height` 也加上 inset 值，确保有足够空间容纳横条且按钮完整可见。
+
+**项目选型**：所有移动端 H5 项目都必须加（哪怕当前没有全面屏用户，因为迟早会有）；小程序用 `wx.getSystemInfoSync().safeArea` 获取安全区信息；原生 App 用 WebView 的 `safeAreaInsets` 传递给 H5。
+
+---
+
 ## 移动端调试
 
 移动端调试比 PC 端复杂，因为代码运行在真机或模拟器上。以下工具覆盖了从开发阶段到线上排查的完整链路。
@@ -536,6 +616,26 @@ adb forward tcp:9222 localabstract:chrome_devtools_remote
 ```
 
 **关键差异**：iOS 只能用 Safari 调试 Safari/WebView（且 Mac 版 Safari 版本需 ≥ 手机版本）；Android 用 Chrome 调试 Chrome/WebView（部分国产 ROM 的 WebView 需开启调试开关）。
+
+---
+
+### 💬 面试深度
+
+**标准回答**：移动端调试有三板斧：vConsole 快速看日志（注入页面，轻量级控制台）、Charles/Whistle 抓包调试（代理请求，查看/修改 HTTP，Mock 接口）、Safari/Chrome 远程调试（真机连接桌面 DevTools，支持断点和性能分析）。日常开发用远程调试最强大；线上问题排查用 vConsole 最方便；接口联调用 Whistle 最灵活（规则配置、Mock 数据、Map Remote 一应俱全）。
+
+**追问预判**：
+
+- **"Whistle 比 Charles 好在哪里？"** → Whistle 基于 Node.js，规则配置更灵活（支持正则、文件、脚本），原生支持 WebSocket 抓包，插件生态丰富，完全免费。Charles 是 GUI 工具，上手更直观，但收费且规则能力不如 Whistle 强大。
+- **"iOS 上怎么调试 WebView？"** → 需要 Mac + Safari。真机 Safari 打开 WebView 页面 → Mac Safari 菜单栏"开发" → 找到对应设备和 WebView → 弹出 Web Inspector。注意 Mac Safari 版本必须 ≥ iOS Safari 版本，否则连接不上。
+
+**源码在哪**：
+
+- vConsole 源码：`node_modules/vconsole/dist/vconsole.min.js`（GitHub `Tencent/vConsole`）
+- Whistle 插件：`~/.whistle/node_modules/` 下存放插件
+
+**踩过的坑**：线上活动页白屏，本地复现不了，抓包发现是运营配的 CDN 链接多了个空格导致 404。当时没开 vConsole 也没代理抓包，靠"盲猜"排查了 2 小时。**教训**：所有线上页面保留一个隐藏的 vConsole 开关（如连续点 5 次 logo 呼出），关键时刻能救命。
+
+**项目选型**：日常开发直接用 Chrome/Safari 远程调试（功能最全）；接口联调 + Mock 用 Whistle（灵活度碾压 Charles）；线上兜底排查用 vConsole（最小化引入、按环境开启）。
 
 ---
 
@@ -682,3 +782,23 @@ window.addEventListener('resize', () => {
 ```
 
 3. **对固定定位元素**，在输入框聚焦时切换为 `position: absolute`，失焦后恢复，减少布局异常。
+
+### 💬 面试深度
+
+**标准回答**：移动端有四大高频坑：① 300ms 点击延迟——现代浏览器在 `<meta viewport width=device-width>` 时已默认消除，FastClick 方案（监听 touchend 立即触发 click）基本成为历史；② iOS 橡皮筋效果——用 `overscroll-behavior: none` 禁止整页弹性滚动，局部滚动用 `contain`；③ 输入框被软键盘遮挡——用 `scrollIntoView({ block: 'center' })` 或监听 `visualViewport.resize` 动态调整；④ 软键盘弹出导致 `100vh` 变小——用 JS 获取 `window.innerHeight` 注入 `--vh` CSS 变量代替 `100vh`。
+
+**追问预判**：
+
+- **"FastClick 的原理是什么？现在还需要吗？"** → FastClick 在 `touchend` 事件中调用 `event.preventDefault()` 阻止默认的 300ms 等待，然后立即用 `dispatchEvent` 模拟触发一个 `click` 事件。从 iOS 9.3 和 Android Chrome 32 起，设置了 `width=device-width` 的 viewport 已默认禁用双击缩放延迟，新项目**无需**引入 FastClick。
+- **"overscroll-behavior 兼容性如何？"** → iOS 16+ 和 Chrome 63+ 全面支持。老 iOS 还需要 `-webkit-overflow-scrolling: touch` + `body { position: fixed }` 来间接控制。如果必须兼容老设备，可用 JS 方案：对不需要滚动的区域 `touchmove` 时 `preventDefault()`（注意设 `{ passive: false }`）。
+
+**源码在哪**：
+
+- FastClick 核心逻辑：`node_modules/fastclick/lib/fastclick.js`（约 400 行，核心在 `onTouchEnd` 方法）
+- iOS WebKit 300ms 消除：`Source/WebKit/WebProcess/WebPage/ios/WebPageIOS.mm`（搜索 `doubleTapDelay`）
+
+**踩过的坑**：Android 微信 WebView 中软键盘弹出后，页面底部 fixed 按钮被顶上来到键盘上方，用户以为是 bug。原因：Android 键盘弹出时视口被压缩，`bottom: 0` 跟随视口变化。**修复**：键盘弹出时把底部 fixed 元素隐藏（`display: none`），键盘收起后恢复，或改用 `position: absolute` + JS 动态计算 `top`。
+
+**项目选型**：300ms 延迟不用管（现代浏览器已消除）；橡皮筋效果加一行 `overscroll-behavior: none` 即可；输入框遮挡用 `scrollIntoView` 最简单；`100vh` 问题统一用 JS 注入 `--vh` 变量，整个项目不要直接用 `vh` 做全屏高度。
+
+

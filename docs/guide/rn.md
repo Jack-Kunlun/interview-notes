@@ -130,6 +130,23 @@ const Card: React.FC<CardProps> = ({ title, description, onPress }) => (
 )
 ```
 
+### 💬 面试深度
+
+**标准回答**：React Native 的核心组件本质上是对 iOS 和 Android 原生控件的跨平台封装——View 对应 UIView/ViewGroup，Text 对应 UILabel/TextView，Image 对应 UIImageView/ImageView。日常 80% 的 UI 靠这七个组件搭出来，记住两条铁律：Image 必须设宽高否则布局跳跃，长列表用 FlatList 替代 ScrollView。
+
+**追问预判**：
+- 「ScrollView 和 FlatList 到底怎么选？」→ ScrollView 一次性渲染所有子元素，适合内容少且固定的场景（表单、设置页）；FlatList 只渲染可视区域并回收离屏元素，适合超过一屏的长列表。一句话：超过屏幕高度一律 FlatList。
+- 「Text 组件的嵌套样式继承和 Web CSS 有什么不同？」→ RN 的 Text 嵌套时子 Text 继承父 Text 样式，但 View 内的 Text 不会继承 View 的样式——这和 CSS 层叠继承完全不同，很多人在这里踩坑。
+
+**源码在哪**：
+- JS 组件层：`react-native/Libraries/Components/View/View.js`、`Libraries/Image/Image.js`、`Libraries/Lists/FlatList.js`
+- iOS 原生映射：`React/Views/RCTView.m`
+- Android 原生映射：`ReactAndroid/src/main/java/com/facebook/react/views/view/ReactViewGroup.java`
+
+**踩过的坑**：Image 组件不设 width/height，网络图片加载前高度为 0，加载完成后突然撑开，下方所有元素位置跟着跳——低端机上用户误触率飙升。**修复**：让后端返回图片宽高比，前端用 `width: screenWidth, height: screenWidth * aspectRatio` 提前占位，或用骨架屏撑住布局。
+
+**项目选型**：基础 UI 用 RN 核心组件足够；复杂手势和动画场景引入 `react-native-gesture-handler` + `react-native-reanimated`，别用内置 Touchable 和 Animated 硬撑。
+
 ## 原生通信 Bridge ⭐⭐⭐
 
 ### 整体架构
@@ -270,6 +287,25 @@ JS Thread:    解析结果  →  setState  →  触发 re-render
 | JSI (新架构) | 双向同步 | 直接 C++ 调用，跳过 Bridge | `jsi::HostObject` |
 | Turbo Modules | 双向按需 | 懒加载原生模块 | 新架构 `TurboModule` |
 
+### 💬 面试深度
+
+**标准回答**：RN 的三线程架构——JS 线程跑业务逻辑，Native/UI 线程负责渲染原生控件，Shadow 线程用 Yoga 引擎算布局。JS 线程发 JSON 消息到 Bridge 队列，Native 线程每帧批量消费；瓶颈在于 JSON 序列化/反序列化开销和异步通信延迟，高频交互（如 onScroll 回调）容易丢帧。Animated 的 useNativeDriver 是绕过 Bridge 的经典手段——动画配置一次性序列化传给原生，中间帧计算全在 Native 侧完成。
+
+**追问预判**：
+- 「新架构（Fabric + TurboModule + JSI）怎么解决 Bridge 瓶颈？」→ JSI 是核心突破——让 JS 直接持有 C++ 宿主对象（HostObject）的引用，调用时通过 vtable 直接执行 C++ 方法，完全跳过 JSON 序列化和 Bridge 队列，实现同步调用。Fabric 把 Shadow Tree 放到 C++ 层维护，支持渲染优先级调度（高优交互可打断低优渲染）。Turbo Modules 按需懒加载原生模块——只在首次 import 时才初始化，替代旧架构启动时全量加载所有 NativeModule 的慢启问题。
+- 「Animated 的 useNativeDriver 为什么只支持 transform 和 opacity？」→ 因为原生驱动动画在 Native 侧计算中间帧时不能触发布局重算（那需要回到 Shadow 线程），所以只能用 transform（平移/旋转/缩放）和 opacity 这类不影响布局的属性。要动画化 width/height/left/top 等布局属性，必须走 JS 线程 → Bridge → Shadow 线程的路径，无法用原生驱动。
+
+**源码在哪**：
+- Bridge 核心（iOS）：`React/Base/RCTBridge.m`、`React/CxxBridge/RCTCxxBridge.mm`
+- JSI 接口定义：`ReactCommon/jsi/jsi/jsi.h`
+- JSI Executor：`React/JSIRuntime/RCTJSIExecutor.mm`
+- Android Bridge 核心：`ReactAndroid/src/main/java/com/facebook/react/bridge/CatalystInstanceImpl.java`
+- NativeModule 注册：`React/Base/RCTModuleData.m`
+
+**踩过的坑**：在 `onScroll` 回调里直接 `setState({scrollY})`——每帧触发一次 Bridge 序列化 → JS setState → re-render → Shadow 线程重算布局，低端机上滚动从 60fps 掉到 30fps 以下。**修复**：改用 `Animated.event` + `useNativeDriver: true`，滚动位置绑定到 Animated.Value，完全在 Native 侧流转；如果必须拿到 JS 用，至少把 `scrollEventThrottle` 调到 100ms 以上，降低 Bridge 调用频率。
+
+**项目选型**：新项目直接上 0.76+ 的新架构（默认启用）；老项目评估三方库（react-native-reanimated、react-native-gesture-handler）兼容性后渐进迁移；涉及蓝牙/硬件通信等高频 Native 调用的模块优先封装为 TurboModule。
+
 ## 热更新 CodePush ⭐⭐⭐
 
 ### 原理与配置
@@ -340,6 +376,23 @@ codePush.sync({
 | 静默更新 | `ON_NEXT_RESUME` | 无感知，自动完成 | 功能优化、文案修正 |
 | 下次启动 | `ON_NEXT_RESTART` | 仅下次启动生效 | 非紧急修复 |
 | 手动更新 | 不自动 sync | 用户主动触发 | 不希望在关键时刻更新 |
+
+### 💬 面试深度
+
+**标准回答**：CodePush 把 JS Bundle 和静态资源放到云端，App 启动时比对版本、下载新包、替换本地文件加载——因为苹果只限制原生二进制变更，JS 脚本可以动态更新绕开审核。更新策略分四种：IMMEDIATE 强制更新（修严重 Bug 弹窗阻断）、ON_NEXT_RESUME 静默更新（用户无感知）、ON_NEXT_RESTART 下次启动生效、手动触发。
+
+**追问预判**：
+- 「原生代码变了热更新还有效吗？」→ **无效**——这是 RN 热更新最大的限制。原生模块（Objective-C/Java/Kotlin）编译进了 App 二进制，CodePush 只能更新 JS Bundle 和静态资源。一旦改了原生代码（如升级第三方 SDK、新增 Native Module），必须重新打包走 App Store / Google Play 审核。所以 RN 不能 100% 热更——涉及原生依赖变更时必须走发版流程。
+- 「CodePush 的回滚机制怎么设计？」→ CodePush 自带自动回滚——如果新 Bundle 加载后 crash，下次启动自动恢复到上一个稳定版本；也可以手动调用 `codePush.clearUpdates()` 回滚。生产环境建议配合崩溃上报（Sentry/Firebase Crashlytics）做监控，crash 率超标时触发自动回滚。
+
+**源码在哪**（CodePush SDK）：
+- iOS 端：`react-native-code-push/ios/CodePush/CodePush.m`
+- Android 端：`react-native-code-push/android/app/src/main/java/com/microsoft/codepush/react/CodePush.java`
+- Bundle 加载逻辑：`react-native/Libraries/AppLoader/RCTAppLoader.mm`
+
+**踩过的坑**：CodePush 只更新了 JS Bundle 但忘记同步新增的静态资源（图片/字体），导致新 UI 引用新图片时本地不存在——白屏占位或 crash。**修复**：部署时用 `code-push release-react` 命令确保 assets 目录被包含，或者在 CI 流程中校验 Bundle 和 assets 的完整性；关键图片也可以 base64 内联到 JS 中兜底。
+
+**项目选型**：CodePush 适合纯 JS/UI 层面的快速迭代（文案、样式、逻辑修复），不适合原生模块频繁变动的项目；也可考虑 expo-updates（Expo 生态的原生热更新替代方案）；国内还可以配合 Pushy（react-native-update）作为 CodePush 服务不可用时的备份方案。
 
 ## 性能优化 ⭐⭐⭐
 
@@ -478,6 +531,24 @@ FastImage.preload([
 | 懒加载 | `React.lazy` + `Suspense` | 减少首屏 Bundle 体积 |
 | 避免内联函数 | `useCallback` + `useMemo` | 减少子组件 re-render |
 
+### 💬 面试深度
+
+**标准回答**：RN 性能优化的核心三板斧——Hermes 引擎（AOT 编译字节码，TTI 提升 30-50%）、FlatList 虚拟化（getItemLayout + windowSize + React.memo）、减少 Bridge 通信（useNativeDriver + Animated 原生驱动）。再加上 FastImage 做图片缓存、useCallback 避免冗余渲染，低端机也能跑出 60fps。
+
+**追问预判**：
+- 「getItemLayout 为什么是 60fps 的关键？」→ FlatList 默认需要逐个测量每个 Item 的高度才能计算滚动位置和总内容高度；设了 getItemLayout 直接跳过测量步骤，根据 index × 固定高度反算 offset，`scrollToIndex` 瞬时定位。没设的话，快速滑动时测量来不及完成，列表空白、掉帧、滚动位置跳动——这是长列表卡顿的头号原因。
+- 「Hermes 的 AOT 和 JSC 的 JIT 本质区别是什么？」→ AOT 在构建时把 JS 编译成字节码，运行时直接执行，省去了解析 + 编译阶段；JIT 是运行时收集热点代码再编译成机器码，首次执行慢但峰值性能高。Hermes 牺牲了 JIT 的峰值性能换更快的冷启动和更低内存——对移动端而言冷启动比峰值更重要。
+
+**源码在哪**：
+- Hermes 引擎：`node_modules/hermes-engine/`（预编译二进制），源码在 Meta 的 `facebook/hermes` 仓库
+- FlatList 虚拟化核心：`react-native/Libraries/Lists/VirtualizedList.js`
+- Animated 原生驱动：`React/Fabric/RCTSurfaceTouchHandler.mm`（Fabric 事件处理）
+- Yoga 布局引擎：`ReactCommon/yoga/yoga/`
+
+**踩过的坑**：Image 组件不设宽高——网络图片加载前高度为 0，加载完成后突然撑开，下方所有元素位置跟着跳；低端机上连续出现用户误触（元素位置变了手指还没移开），体验极差。**修复**：让后端返回图片宽高比，前端用 `width: screenWidth, height: screenWidth * aspectRatio` 提前占位，或用骨架屏撑住布局。
+
+**项目选型**：快速启动选 Hermes（RN 0.76+ 默认引擎）；需要 Proxy/Intl 等特性回退 JSC；图片缓存选 FastImage（优于社区其他方案）；复杂动画选 react-native-reanimated v3（支持 Shared Value，完全跑在 Native 线程）。
+
 ## RN 与 Flutter 对比 ⭐⭐
 
 React Native 和 Flutter 是当前最主流的两大跨平台方案，设计和哲学截然不同。RN 采用 **"Learn once, write anywhere"**，通过 Bridge 调用原生控件，本质上渲染的是平台原生 UI；Flutter 采用自绘引擎 Skia，用 Dart 直接绘制所有像素，不依赖平台 UI 组件，保证跨平台像素级一致。RN 适合已有 React 技术栈的团队快速复用 Web 端代码；Flutter 适合追求高一致性 UI、复杂动画的团队。
@@ -525,6 +596,22 @@ const MyScreen = () => (
 | 生态成熟度 | 2015 起，npm 生态丰富 | 2018 起，pub.dev 快速增长 |
 | 包体积 | 较小（~7MB） | 较大（~15MB+） |
 | 适用团队 | React 技术栈的 Web 团队 | 追求 UI 一致性、独立团队 |
+
+### 💬 面试深度
+
+**标准回答**：RN 是「Learn once, write anywhere」，通过 Bridge 调原生控件，UI 本质上是平台原生组件；Flutter 用 Skia 自绘引擎，Dart 直接操纵像素，不依赖任何平台 UI。RN 适合有 React 技术栈的 Web 团队快速上手，Flutter 适合追求跨平台 UI 像素级一致和复杂动画的团队。新架构下 JSI 缩小了通信性能差距，但渲染哲学不同——RN 依赖原生控件，Flutter 自己画一切。
+
+**追问预判**：
+- 「为什么 Flutter 不需要 Bridge？」→ Flutter 用 Dart 编写的 Skia 引擎直接渲染像素，所有 UI 逻辑在一个线程中运行，不需要跨语言/跨线程通信；Dart 编译成 ARM 原生代码，性能接近原生。代价是包体更大（~15MB），且无法复用平台原生控件（如 iOS 的毛玻璃效果需要自己画）。
+- 「新架构（JSI）能抹平 RN 和 Flutter 的性能差距吗？」→ JSI 解决了 Bridge 的序列化瓶颈，JS 直接调 C++，通信效率接近 Flutter。但渲染层面 RN 仍依赖原生控件，跨平台 UI 一致性不如 Flutter。所以是「性能接近但哲学不同」——选型取决于你对 UI 一致性和原生体验的权重。
+
+**源码在哪**：
+- Flutter Engine（Skia 渲染层）：`flutter/engine`（C++ 实现）
+- RN 对比基准 C++ 核心：`ReactCommon/`（JSI、Fabric、TurboModules 实现）
+
+**踩过的坑**：选了 RN 但 UI 设计稿要求 iOS 和 Android 像素级一致——RN 的原生控件在不同平台上默认样式不同（TextInput 的边框、阴影、光标样式），需要大量 `Platform.OS` 分支代码抹平差异，反而比 Flutter 更累。**修复**：设计阶段就和设计师对齐——同一套设计适配两个平台时接受合理差异，或者改用 Flutter 追求像素级还原。
+
+**项目选型**：Web 团队已有 React 基础 → RN；追求 UI 一致性和复杂动画 → Flutter；需要频繁与原生硬件交互（蓝牙/摄像头）→ RN（Bridge + 新架构生态更成熟）。
 
 ## 常见面试题 ⭐⭐⭐
 
@@ -634,4 +721,25 @@ const { TurboCamera } = NativeModules  // ← 此刻才加载
 TurboCamera.takePicture()  // JSI 同步调用，无 Bridge 序列化
 ```
 
-> **注意**：新架构在 RN 0.76+ 已默认启用，但存量项目迁移需要适配，部分三方库可能尚未兼容。
+
+
+### 💬 面试深度
+
+**标准回答**：RN 面试核心考察四点——Bridge 通信原理（三线程 + JSON 序列化瓶颈）、性能优化策略（Hermes AOT + FlatList 虚拟化 + 减少 Bridge）、热更新机制（CodePush 只能更 JS 不能更原生）、新架构认知（JSI/Fabric/TurboModules 解决什么问题）。能把这四点讲透，基本过一面。
+
+**追问预判**：
+- 「如果让你从零搭建 RN 项目，技术栈怎么选？」→ RN 0.76+（新架构默认启用）+ TypeScript + React Navigation v7 + react-native-reanimated + react-native-gesture-handler + FastImage + MMKV（存储），状态管理看团队习惯——Zustand 轻量够用，Redux Toolkit 适合大型协作项目。
+- 「RN 和原生混合开发怎么分工？」→ UI 层全用 RN（热更新覆盖），性能敏感模块（音视频编解码、AR、复杂手势）写原生 Module 暴露给 JS；原生和 RN 页面之间通过 Native Stack Navigator 无缝切换。
+
+**源码在哪**（面试高频源码清单）：
+- Bridge 核心：`React/Base/RCTBridge.m`、`React/CxxBridge/RCTCxxBridge.mm`
+- JSI 接口：`ReactCommon/jsi/jsi/jsi.h`
+- JSI Executor：`React/JSIRuntime/RCTJSIExecutor.mm`
+- TurboModules：`ReactCommon/turbomodule/core/TurboModule.cpp`
+- Fabric 渲染器：`ReactCommon/react/renderer/`
+- Android Bridge：`ReactAndroid/src/main/java/com/facebook/react/bridge/CatalystInstanceImpl.java`
+
+**踩过的坑**：面试时被问「你用过新架构吗？」答「用过」但说不清 JSI 和 Bridge 的具体区别——面试官深挖到 JSI HostObject 和 TurboModule 懒加载时机就露馅。**修复**：至少在一个真实项目中开启过新架构，对照旧架构跑一遍启动流程；关键是理解 JSI 让 JS 持有 C++ 对象的 HostObject 引用，调用不再走 JSON 序列化，而是直接的 vtable 调用。
+
+**项目选型**：面大厂重点准备 Bridge + 新架构 + 性能优化体系；面创业公司重点准备快速迭代方案（热更新 + 组件复用 + 原生模块封装）。
+

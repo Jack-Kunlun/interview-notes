@@ -112,6 +112,22 @@ console.log(dave.name, dave.age) // "Dave" 30
 
 ---
 
+
+### 💬 面试深度
+
+- **标准回答**：call/apply/bind 都是 Function.prototype 上改变 this 指向的方法。call 和 apply 立即执行，区别是 call 逐个传参、apply 用数组传参。bind 不立即执行，而是返回一个永久绑定 this 的新函数，支持柯里化预设参数，而且 bind 返回的函数还能被 new 调用——此时 this 指向实例而非绑定的上下文。手写时核心思路是把函数临时挂到上下文对象上，用 Symbol 做 key 避免属性冲突，执行完再删除。
+
+- **追问预判**：
+  1. **"手写一个 softBind 或偏函数"**：softBind 是 bind 的变体——只在调用时 this 为 undefined/null/globalThis 时才使用绑定的 ctx，否则保留调用时的 this。实现方式：在 bound 函数内判断 `this === globalThis || this == null` 决定最终上下文，而非像 bind 那样永远用绑定的 ctx。偏函数（partial）则是不绑定 this，只预设部分参数，返回 `fn.apply(this, [...preArgs, ...args])`。
+  2. **"bind 返回的函数作为构造函数时，原型链怎么处理"**：关键代码是 `bound.prototype = Object.create(fn.prototype)`。这样 new bound() 产生的实例 → bound.prototype → fn.prototype，所以 `instance instanceof fn` 为 true。用 Object.create 而非直接赋值是为了避免修改 bound.prototype 时污染 fn.prototype。
+
+- **源码在哪**：V8 中 `Function.prototype.call` 的 C++ 实现在 `src/builtins/builtins-function.cc` 中的 `FunctionPrototypeCall`，bind 在同文件 `FunctionPrototypeBind`。
+
+- **踩过的坑**：用 `ctx[key] = this` 时 key 用了普通字符串如 `'fn'`——如果 ctx 上恰好有同名属性就被覆盖了。后来改用 `Symbol('fn')` 解决。另一个坑是 `ctx ?? globalThis` 对原始类型如 `call(123)` 没转包装对象，更严谨的写法是 `Object(ctx)`，否则原始类型上挂属性会静默失败（严格模式下报错）。
+
+- **项目选型**：参数固定用 call，参数已是数组用 apply，需延迟执行或预设参数用 bind——日常直接用原生方法，手写版的价值在于彻底理解 this 绑定规则，这对调试 React 类组件和回调中的 this 问题帮助巨大。
+
+---
 ## 手写 new
 
 ### new 的四件事
@@ -250,6 +266,22 @@ console.log(complex !== cloned2)          // true（独立对象）
 
 ---
 
+
+### 💬 面试深度
+
+- **标准回答**：深拷贝的核心是递归复制所有嵌套引用类型。我一般用 WeakMap 解决循环引用——拷贝前把源对象作为 key、克隆对象作为 value 存入 WeakMap，再次遇到同一个引用时直接返回缓存的克隆对象。特殊类型要分别处理：Date 用 getTime 创建新实例，RegExp 传 source 和 flags，Map/Set 逐个元素递归拷贝。遍历属性时用 Reflect.ownKeys 而不是 Object.keys，因为前者能拿到 Symbol 键。
+
+- **追问预判**：
+  1. **"为什么循环引用用 WeakMap 而不是 Map？WeakMap 的 key 必须是对象，这有什么限制"**：WeakMap 的 key 是弱引用，不影响垃圾回收——如果源对象在外部被置为 null，WeakMap 中对应的条目会被自动回收，避免内存泄漏。但在 deepClone 的场景里，cache 是局部变量，函数执行完就销毁了，所以这里用 Map 也没问题。面试官真正想听的是 WeakMap 的弱引用特性。至于 key 必须是对象的限制，在这里恰好不是问题——因为基本类型不会产生循环引用，根本不会进入 cache。
+  2. **"如果对象的 key 本身也是对象（比如 Map 的 key），深拷贝怎么处理"**：对于 Map，遍历时对 key 和 value 都要递归深拷贝：`clonedMap.set(deepClone(k, cache), deepClone(v, cache))`。key 也可能有循环引用，所以传给 deepClone 时带上同一个 cache，这样 key 的循环引用也能被正确处理。
+
+- **源码在哪**：V8 的 structuredClone 实现在 `src/bindings/v8/serialization/` 目录，lodash 的 cloneDeep 在 `lodash/.internal/baseClone.js`。
+
+- **踩过的坑**：曾经对 Date 直接用展开运算符 `{...date}`——展开 Date 实例只能拿到 enumerable 属性，本质上是空对象 {}，丢失了时间值。正确做法是 `new Date(date.getTime())`。另一个坑是忘了处理 Function 和 Symbol——这类不可克隆的类型在 structuredClone 中会直接抛错，在业务中通常直接赋值引用而非深拷贝。
+
+- **项目选型**：简单场景 `structuredClone` 原生 API 够用（但无 Function/Symbol 支持），复杂场景用 lodash.cloneDeep，手写版本主要用于面试和需要处理特殊类型（如自引用 Map、自定义类实例）的场景。
+
+---
 ## 数组去重
 
 ### 五种基础方法
@@ -688,6 +720,22 @@ console.log(quickSortInPlace([5, 2, 9, 1, 5, 6]))
 
 ---
 
+
+### 💬 面试深度
+
+- **标准回答**：快排是分治思想，选基准值把数组分成小于和大于两部分再递归，平均 O(n log n)，但基准选得不好会退化到 O(n²)。实际工程中 V8 用的是 TimSort——一种混合排序，结合了归并排序的稳定性和插入排序在小数组上的高效性，平均和最坏都是 O(n log n)，且是稳定排序。面试手写时如果要求原地排序，用 Lomuto 分区方案选最右为基准，两个指针扫描交换。
+
+- **追问预判**：
+  1. **"为什么 V8 不用快排而用 TimSort"**：快排不稳定（相同元素的相对顺序可能改变），且最坏 O(n²)。TimSort 利用了现实数据中经常存在有序片段（run）的特点，把这些 run 用归并合并，在近乎有序的数组上接近 O(n)，且稳定。
+  2. **"Array.prototype.sort 的比较函数返回 0、正数、负数分别代表什么"**：返回负数表示 a 在 b 前，正数表示 b 在 a 前，0 表示不变（但不保证稳定——ES2019 之前规范不要求稳定，现在 V8 TimSort 是稳定的）。
+
+- **源码在哪**：V8 的 TimSort 实现：`v8/third_party/v8/builtins/array-sort.tq`（Torque 语言），核心逻辑在 `deps/v8/src/builtins/array-sort.tq` 中的 `ArrayTimSort`。
+
+- **踩过的坑**：直接用 `arr.sort()` 对数字数组排序——`[1, 2, 10, 20].sort()` 结果是 `[1, 10, 2, 20]`，因为默认按字符串 Unicode 序排列。必须传比较函数 `(a, b) => a - b`。
+
+- **项目选型**：日常开发直接用 `Array.prototype.sort`（V8 已是最优的 TimSort），手写排序的价值在于理解分治思想和复杂度分析，这对算法面试和性能敏感场景（如手写 TopK）非常重要。
+
+---
 ## LRU 缓存
 
 LRU（Least Recently Used）缓存：当缓存达到容量上限时，淘汰**最久未使用**的数据。`Map` 的遍历顺序等于插入顺序，天然适合实现 LRU——每次访问后删除再重新插入即可移到末尾。
@@ -742,6 +790,22 @@ console.log(lru.get(3)) // 'C'
 
 ---
 
+
+### 💬 面试深度
+
+- **标准回答**：LRU 缓存的核心是"容量满了淘汰最久未使用的"。用 Map 实现是最简洁的——Map 的遍历顺序就是插入顺序，get 时 delete 再 set 就能把访问项移到末尾，put 时如果满了就删 `map.keys().next().value`（第一个键）。三个操作 get、put、淘汰都是 O(1)。如果面试官要求不用 Map，就用双向链表+哈希表——链表维护访问顺序，哈希表实现 O(1) 查找。
+
+- **追问预判**：
+  1. **"Map 替代双向链表的原理是什么？Map 的 keys() 迭代器为什么能拿到最旧的键"**：ES6 Map 的迭代顺序严格等于插入顺序。每次 get 先 delete 再 set，相当于把该键"重新插入"到末尾，所以 `map.keys().next().value` 始终是第一次插入后没有被访问过的键——即最久未使用。
+  2. **"如果面试官让你用双向链表实现 LRU，你会怎么设计"**：维护 head 和 tail 哨兵节点——最近使用的放在 head.next，最久未使用在 tail.prev。get 时通过哈希表 O(1) 找到节点，断开并移到 head 后。put 时如果容量满了，删除 tail.prev。核心是链表指针操作不能出错。
+
+- **源码在哪**：Node.js 内部没用 LRU 做通用缓存模块，但 V8 的编译缓存（code cache）使用了类似 LRU 策略，源码在 `v8/src/objects/compilation-cache-table.cc`。
+
+- **踩过的坑**：在 put 方法里先 `cache.has(key)` 判断再 delete，逻辑是对的，但如果先 delete 再判断 size，在某些边界（比如 key 已存在且刚好在满容时 put 同 key）顺序错了会导致误删。正确顺序：先检查 key 是否存在 → 存在则 delete 再 set（不移除最旧），不存在且满了才先删最旧再 set。
+
+- **项目选型**：前端做请求去重/缓存时直接用 `new Map()` + 手动维护容量即可，不需要引入 lru-cache 库。但如果缓存项有 TTL 过期需求，考虑用 `lru-cache` npm 包（支持 maxAge）。
+
+---
 ## EventEmitter
 
 观察者模式的经典实现，Node.js `events` 模块的核心。需要实现四个方法：`on`（订阅）、`once`（一次性订阅）、`emit`（发布）、`off`（取消订阅）。
@@ -829,6 +893,22 @@ emitter.emit('connect', 'third')
 
 ---
 
+
+### 💬 面试深度
+
+- **标准回答**：EventEmitter 是发布-订阅模式的实现。on 注册回调存到事件名对应的数组，emit 遍历数组执行，off 从数组移除，once 包装一个执行后自动 off 的回调。关键细节是 emit 时要先拷贝回调数组再遍历——因为 once 的回调在执行时会调用 off 修改原数组，如果直接遍历原数组会导致跳过元素或下标错乱。off 匹配回调时要用 `cb !== callback && cb._original !== callback` 来处理 once 包装的情况。
+
+- **追问预判**：
+  1. **"emit 时如果某个回调里触发了 off 移除其他回调，会发生什么"**：如果 emit 里直接遍历 `this._events[event]` 而不拷贝，splice/delete 会导致数组长度变化、索引错乱，后面的回调可能被跳过。用 `[...callbacks]` 创建浅拷贝就能避免——遍历的是快照，修改原数组不影响迭代。这也是 Node.js 源码 `lib/events.js` 中 `emit` 的实现方式。
+  2. **"如何实现事件优先级或异步 emit"**：优先级可以让回调变成 `{ fn, priority }` 对象，注册时按优先级插入；异步 emit 用 `process.nextTick` 或 `Promise.resolve().then()` 包裹回调执行，常见于需要批量触发后统一处理的场景。
+
+- **源码在哪**：Node.js 的 EventEmitter 实现在 `lib/events.js`，核心方法 `_addListener`、`emit`、`removeListener` 都在该文件中。
+
+- **踩过的坑**：once 实现时直接用 `this.on(event, callback); this.off(event, callback)`——off 的第二个参数和 on 注册的不是同一个引用（once 注册的是 wrapper），导致 off 无效。正确做法是：on 注册 wrapper，wrapper 内部先执行 callback 再 `this.off(event, wrapper)`，同时给 wrapper 挂 `_original` 引用方便外部 off 精确匹配。
+
+- **项目选型**：前端组件通信用 EventEmitter 轻量且解耦，Vue 2 的 `$on/$emit/$off` 底层就是类似的实现。需要类型安全的场景可以用 mitt（3KB）或手写一个带 TypeScript 泛型的版本。
+
+---
 ## 柯里化（Curry）
 
 柯里化将**多参数函数**转换为**一系列单参数函数**的链式调用。核心思想：收集参数，参数够了就执行原函数，不够就返回新函数继续收集。
@@ -894,6 +974,20 @@ function curryWithPlaceholder(fn, ...preArgs) {
 
 ---
 
+
+### 💬 面试深度
+
+- **标准回答**：柯里化把多参数函数转成单参数链式调用——参数够了就执行，不够就返回新函数继续收。核心是判断 `preArgs.length >= fn.length`，fn.length 就是函数的形参个数。这个模式在前端最实用的场景是函数式编程中的"部分应用"：比如写一个日志函数 `log(level, time, message)`，柯里化后可以预设 `const errorLog = curriedLog('ERROR')`，后续只需要传时间和消息。
+
+- **追问预判**：
+  1. **"fn.length 有什么局限？如果函数用了 rest 参数或默认参数怎么办"**：fn.length 只统计第一个默认参数之前的形参个数，rest 参数不计入。比如 `function(a, b = 1, c) {}` 的 fn.length 是 1。这种情况下 curry 的"参数够了"判断会失效，需要在设计时约定固定的参数个数。
+  2. **"柯里化和偏函数（partial application）的区别"**：柯里化每次只传一个参数，链式调用 `curry(fn)(a)(b)(c)`。偏函数是一次性预设多个参数：`partial(fn, a, b)` 返回只需传剩余参数的函数。本质相关但粒度不同——curry 是对函数的一种变换，partial 是直接应用。
+
+- **踩过的坑**：用 `preArgs.length >= fn.length` 判断时，如果原函数 fn 的形参数为 0（如 `() => 42` 或 `function(...args) {}`），第一次调用 curry 就会直接执行，后续链式调用会报错。兼容写法是拿到 curry 后至少调用一次空参 `curriedFn()` 再传参，或在 curry 内部对 fn.length === 0 做特殊处理。
+
+- **项目选型**：Redux 中间件就是柯里化的经典应用——`store => next => action => {}` 三层嵌套，让每个中间件可以独立配置 store、访问 next、处理 action。前端项目里如果经常复用部分参数的函数，用 lodash.curry 即可，不需要手写。
+
+---
 ## 大数相加
 
 JavaScript 的 `Number` 类型使用 IEEE 754 双精度浮点数，安全整数范围为 `-(2^53 - 1)` 到 `2^53 - 1`（即 `Number.MIN_SAFE_INTEGER` 到 `Number.MAX_SAFE_INTEGER`）。超出此范围的整数运算会丢失精度，需用**字符串逐位相加**模拟。
@@ -949,6 +1043,20 @@ console.log(9007199254740992 + 1)     // 9007199254740992（丢失精度！）
 
 ---
 
+
+### 💬 面试深度
+
+- **标准回答**：JS 的 Number 安全整数范围是 ±2^53，超出会丢精度。大数相加的思路是模拟小学数学竖式加法：从两个字符串末尾开始逐位相加，sum % 10 是当前位，Math.floor(sum / 10) 是进位。循环条件是还有未处理位或进位不为 0。最后结果数组 reverse 再 join。现在 ES2020 有 BigInt 可以直接用，但手写题考的是字符串操作和进位思维。
+
+- **追问预判**：
+  1. **"如果改成大数相乘怎么实现"**：大数相乘也是竖式模拟，但更复杂：num1 每位和 num2 每位相乘，结果存入 `result[i + j + 1]` 位置，最后统一处理进位。时间复杂度 O(n*m)。
+  2. **"BigInt 能和 Number 混用吗？有什么限制"**：不能直接混用——`1n + 1` 会报 TypeError，必须显式转换。但 `BigInt(2^53)` 已经是 Number 的近似值，要用 `BigInt('9007199254740992')` 字符串构造才精确。BigInt 也不支持 Math 对象的方法。
+
+- **踩过的坑**：用 `+num1[i]` 把字符转数字没问题，但用 `parseInt` 要注意——`parseInt` 对单个数字一样，但如果后面改成了 `parseInt(num1.slice(i, i+2))`（想一次取两位加速计算），进制和空字符串陷阱都来了。保持逐位取最稳妥。
+
+- **项目选型**：涉及金额计算优先用第三方库（如 big.js、decimal.js），它们支持小数和四舍五入。BigInt 适合整数场景且不需要兼容旧浏览器时直接用。手写字符串相加主要用于面试和了解底层原理。
+
+---
 ## 总结
 
 本文覆盖的手写题是前端面试的**核心基础**，每个方法都要求能在白板/编辑器中独立完成。建议按以下优先级练习：

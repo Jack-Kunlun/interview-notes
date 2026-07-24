@@ -151,6 +151,19 @@ location ~* \.(js|css|png|jpg|jpeg|gif|svg|woff2)$ {
 }
 ```
 
+### 💬 面试深度
+
+**标准回答**：我们项目的首屏从 3.2s 降到 0.8s，核心做了四件事：一是构建时用 Brotli 预压缩 + CDN 强缓存，静态资源命中率达 98%；二是路由级代码分割，首屏 JS 从 1.4MB 降到 180KB；三是 `<picture>` + AVIF/WebP 多格式响应式图片，图片体积减少 60%；四是关键 CSS 内联 + 非关键 CSS 异步加载，FCP 提前了 1.2s。最终 LCP 3.2s → 0.8s，Lighthouse 评分 42 → 91。
+
+**追问预判**：
+
+- Q: "Brotli 和 Gzip 怎么选？" → 静态资源构建时同时生成 `.br` 和 `.gz`，Nginx 开启 `brotli_static on` 优先返回 `.br`，不支持 Br 的旧浏览器降级到 Gzip。不要实时压缩——CPU 开销太大。
+- Q: "preload 和 prefetch 用错了会怎样？" → preload 滥用会抢占带宽，导致真正关键的资源排队；prefetch 在弱网下可能浪费用户流量。preload 只用于首屏字体和 Hero 图，prefetch 只用于高概率下一页资源。
+
+**踩过的坑**：首次上线时把所有路由都加了 `<link rel="prefetch">`，结果首页加载同时预取了 15 个页面 chunk，弱网下首屏反而慢了 2s。修复：只对用户 80% 概率会点击的下一页做 prefetch，其余走点击时动态 `import()`。
+
+**项目选型**：Brotli 静态预压缩 vs CDN 实时压缩——选 Brotli 预压缩，因为压缩率高 20% 且零服务器 CPU 开销，构建时多花 3s 完全可接受。
+
 ---
 
 ## 运行时优化
@@ -325,6 +338,19 @@ items.forEach((item, i) => {                           // 批量写
 | 重绘（Repaint） | Paint → Composite | 中等 | color, background, box-shadow, border-color |
 | 合成（Composite） | Composite only | 最小 | transform, opacity（需 promote 到独立层） |
 
+### 💬 面试深度
+
+**标准回答**：我们的数据大盘页面渲染 5 万条表格行，优化前页面卡顿 3s+。三步解决：第一步用 `react-window` 虚拟列表，DOM 节点从 50000 降到 ~30，初始渲染从 3.2s → 0.2s；第二步把所有高频事件（scroll、input 搜索）加 debounce/throttle，长任务从 12 个降到 2 个；第三步 CSS 动画全部迁移到 `transform` + `opacity`，避免触发布局重排。最终 FPS 稳定 60，INP 从 480ms → 85ms。
+
+**追问预判**：
+
+- Q: "虚拟列表的动态高度怎么做？" → 先用预估高度渲染，`afterMount` 时用 `ResizeObserver` 实测每个 item 的真实高度并缓存，滚动时基于累积高度做二分查找定位 startIndex。`react-virtuoso` 和 `vue-virtual-scroller` 的 dynamic mode 都内置了这个逻辑。
+- Q: "防抖和节流在 React/Vue 中怎么正确使用？" → 关键是要用 `useMemo`/`useCallback`（React）或 `composable` 中 `onUnmounted` 清理（Vue），否则每次 render 都创建新函数导致失效，且组件卸载后未清理的 timer 会造成内存泄漏。
+
+**踩过的坑**：虚拟列表中每行内嵌了一个 ECharts 迷你图（sparkline），滚动时不断创建/销毁 chart 实例，导致滚动帧率掉到 15fps。修复：给每个 chart 实例做对象池复用——离开视口时 `dispose()` → 回收到池 → 进入视口时从池取实例 `setOption()` 更新数据而非新建。帧率恢复到 58fps。
+
+**项目选型**：`react-window` vs `react-virtuoso`——5 万行固定高度表格选 react-window（2KB gzip，极致轻量）；动态高度 + 自动测量场景选 react-virtuoso（开箱即用但 ~14KB）。
+
 ---
 
 ## 网络优化
@@ -411,6 +437,19 @@ HTTP/1.1 时代常用的"域名分片"（多域名突破 6 连接限制）和"�
   <noscript><link rel="stylesheet" href="/styles/full.css" /></noscript>
 </head>
 ```
+
+### 💬 面试深度
+
+**标准回答**：网络层优化我们做了三件事让加载时间减半：一是 CDN + 强缓存策略，带哈希的静态资源 `max-age=31536000, immutable`，命中率 98%+，HTML 用 `no-cache` 保证即时更新；二是升级到 HTTP/2，废弃了域名分片和 CSS Sprite 等 H1 时代的"最佳实践"，细粒度模块并行加载反而更快；三是关键 CSS 内联（14KB 以内），FCP 提前了 800ms。验证数据：P95 资源加载耗时从 2.1s → 0.6s。
+
+**追问预判**：
+
+- Q: "HTTP/2 下还需要合并 JS/CSS 吗？" → 不需要，反而有害。H2 多路复用让细粒度文件并行加载几乎零成本，合并文件会牺牲缓存粒度——改一行代码整包失效。但也不宜过细（100+ 小文件），模块粒度控制在 20-50KB 每个 chunk 比较理想。
+- Q: "协商缓存 ETag 和 Last-Modified 用哪个？" → ETag 优先。Last-Modified 精度只有秒级，1s 内多次修改会漏判；ETag 是内容哈希，精确到字节。Nginx 默认两者都发，浏览器优先用 ETag。
+
+**踩过的坑**：配置 CDN 缓存时忘了设置 `Vary: Accept-Encoding`，结果 CDN 边缘节点缓存了 Brotli 版本却返回给只支持 Gzip 的旧 Android WebView，页面白屏。修复：加 `Vary: Accept-Encoding`，CDN 对不同 `Accept-Encoding` 分别缓存。
+
+**项目选型**：自建 Nginx 静态资源服务 vs 商业 CDN——选择阿里云 CDN，因为全国边缘节点覆盖 + 免费的图片处理（裁剪/压缩/转 WebP），自建无法做到就近接入。
 
 ---
 
@@ -519,6 +558,21 @@ function onRenderCallback(
 </Profiler>
 ```
 
+### 💬 面试深度
+
+**标准回答**：React 性能优化我遵循"先测量再优化"原则。先用 React Profiler 定位到三个瓶颈：一个高频更新的 Context 导致 200+ 组件重渲染、一个未 memo 的表格列排序每次 render 重算、一个内联箭头函数让 `React.memo` 失效。分别修：拆分 Context（高频和低频分开）、`useMemo` 缓存排序结果、`useCallback` 稳定函数引用。最终一次典型交互的重渲染组件数从 200+ → 8，render 耗时从 180ms → 12ms。
+
+**追问预判**：
+
+- Q: "React.memo 和 useMemo 的区别，什么时候不该用？" → React.memo 缓存组件（跳过 render），useMemo 缓存值（跳过计算）。不该用的情况：props 每次都变（memo 的比较成本 > 收益）、简单计算（如 `a + b`，缓存开销大于重算）、对象/数组未配合 useMemo 稳定引用导致 memo 永远失效。
+- Q: "Context 导致的全量重渲染怎么解决？" → 三种策略：① 拆分 Context——高频状态（如选中项）和低频状态（如主题）放在不同 Provider；② `useMemo` 包裹 Context value，避免无意义的新对象；③ Zustand/Jotai 等外部状态库绕开 Context 机制，实现组件级订阅。
+
+**源码在哪**：React.memo 的浅比较逻辑在 `packages/react-reconciler/src/ReactFiberBeginWork.js` 的 `beginWork` 函数中，`updateMemoComponent` 分支调用 `shallowEqual` 比较新旧 props。useMemo/useCallback 的缓存机制在 `packages/react-reconciler/src/ReactFiberHooks.js`。
+
+**踩过的坑**：在 `useMemo` 的依赖数组里塞了一个未被 useMemo 包裹的对象字面量 `{ filters }`，导致每次 render 依赖都"变"了，useMemo 完全失效——排查了一下午才发现。修复：要么把对象拆成原始值依赖，要么用 `useRef` + 手动浅比较。
+
+**项目选型**：React.memo + useMemo vs 直接上 Zustand——非全局状态用 memo/useMemo 够轻量；一旦涉及跨层级共享状态（如多选、主题、用户信息），直接上 Zustand，避免 Context 重渲染陷阱。
+
 ---
 
 ## Vue 性能优化
@@ -601,6 +655,21 @@ onDeactivated(() => {
 });
 </script>
 ```
+
+### 💬 面试深度
+
+**标准回答**：Vue 3 项目性能优化我重点用了三个 API：一是 `shallowRef` 存储图表大数据（GeoJSON 5MB），深层属性修改不触发代理递归，初始化快 4 倍；二是 `v-memo` 优化大列表中的条件渲染项，列表更新时 90% 的项跳过 VNode diff；三是 `<KeepAlive>` 缓存标签页，切换时保留滚动位置和表单状态，返回体验丝滑。配合路由级懒加载，首屏从 2.1s → 0.7s。
+
+**追问预判**：
+
+- Q: "shallowRef 修改深层属性视图不更新怎么办？" → 两种方式：① 整体替换 `.value = { ...old, nested: newVal }`（推荐，保持数据不可变性）；② `triggerRef(shallowRef)` 手动触发更新。实际项目中优先方案①。
+- Q: "KeepAlive 缓存过多会怎样？" → 内存持续增长，低端设备可能 OOM。必须设置 `:max` 限制缓存数量（LRU 淘汰），并在 `onDeactivated` 中清理定时器/事件监听/WebSocket。
+
+**源码在哪**：`shallowRef` 的实现极简——`packages/reactivity/src/ref.ts`，对比 `ref` 少了 `toReactive` 的深度转换调用。`v-memo` 的 diff 逻辑在 `packages/runtime-core/src/renderer.ts` 的 `patchElement` 中，通过 `hasPropsChanged` 比较依赖数组。
+
+**踩过的坑**：把 ECharts 实例用 `ref` 而非 `shallowRef` 存储，Vue 深度代理了 ECharts 内部几千个属性，初始化耗时从 50ms 暴增到 400ms，且 ECharts 内部属性被代理后出现奇怪报错。修复：`shallowRef` 存 ECharts 实例，Vue 只追踪 `.value` 的替换。
+
+**项目选型**：v-once vs v-memo——静态文档用 v-once（零开销，永不刷新）；动态列表中部分项需跳过渲染用 v-memo（更精细，有依赖比较成本）。
 
 ---
 
@@ -735,6 +804,19 @@ console.log({
 });
 ```
 
+### 💬 面试深度
+
+**标准回答**：我们项目的性能监控体系分三层：CI 门禁用 Lighthouse CI + Performance Budget（LCP > 2.5s 或 CLS > 0.15 直接阻断构建）；线上 RUM 用 `web-vitals` 库采集 LCP/INP/CLS/FCP，P95 分位值上报到 Grafana；每周用 Chrome Performance Tab 做一次深度录制，火焰图定位长任务。从数据驱动：INP 从 320ms → 95ms 是因为定位到一个列表项 click 回调中做了 O(n) 查询改用 Map 索引。
+
+**追问预判**：
+
+- Q: "Lighthouse 跑分很高，但用户说卡怎么办？" → Lighthouse 是模拟数据（Moto G4 + 3G），和真实用户的设备/网络差异大。必须结合 RUM 真实数据看 P75/P95，按设备、网络、地域分层分析。另外 Lighthouse 不测交互流畅度——滚动卡顿、动画掉帧需要 Performance Tab 手动录制。
+- Q: "INP 为什么替代 FID，怎么优化 INP？" → FID 只看首次交互，INP 跟踪整个生命周期所有交互的最大延迟，更能反映真实体验。优化 INP 三板斧：① 拆分长任务（超过 50ms 的 JS 任务拆成 <50ms 的块，用 `scheduler.yield()` 或 `setTimeout` 让出主线程）；② 事件回调中的重计算用 `requestIdleCallback` 延迟；③ 避免事件回调中触发强制同步布局（先读后写）。
+
+**踩过的坑**：用 `web-vitals` 采集数据时没加 `reportAllChanges: true`，CLS 只上报了最终值 0.05，但实际页面加载过程中有个布局跳动 0.3（发生在用户点击按钮瞬间导致了误触）。修复：加 `reportAllChanges: true` 捕获每次 CLS 变化，设置阈值告警。
+
+**项目选型**：Lighthouse CI vs 自己写 Puppeteer 脚本——直接用 Lighthouse CI，因为 Google 维护的标准方案生态完善（GitHub Action 插件、PR 评论对比、Historical 趋势图），自研脚本维护成本高且指标口径可能不一致。
+
 ---
 
 ## 常见性能面试题
@@ -803,3 +885,16 @@ function send(data) {
 ```
 
 **监控平台：** 自建方案通常基于 Prometheus + Grafana 或 ELK；第三方方案如 Sentry Performance、Datadog RUM、阿里 ARMS。关键看板指标：Core Web Vitals 趋势图、P75/P95 分位值、按页面路由拆分的性能分布、慢资源 Top 10。
+
+### 💬 面试深度
+
+**标准回答**：面试官问"怎么做性能优化"时，我先给结论——"首屏 LCP 从 3.2s 降到 0.8s，INP 从 480ms 降到 85ms，Lighthouse 从 42 分提到 91"。然后按四层展开：加载层（Brotli + CDN + 代码分割 + 图片优化）、运行时层（虚拟列表 + 防抖节流 + CSS GPU 加速）、网络层（HTTP/2 + 强缓存 + 关键 CSS 内联）、框架层（React.memo/useMemo 或 shallowRef/v-memo）。最后说验证闭环——Lighthouse CI 门禁 + RUM 线上监控。这样的结构化回答既体现深度也展现体系化思维。
+
+**追问预判**：
+
+- Q: "你优化完后怎么验证效果？怎么保证不退化？" → 三层验证：① 本地 Lighthouse 跑分（quick check）；② CI 中 Lighthouse CI 设置 Performance Budget，低于阈值 PR 不能合入；③ 上线后看 RUM 面板的 P95 指标，设置 Grafana 告警（INP > 200ms 或 CLS > 0.1 触发报警）。
+- Q: "性能优化有没有过度优化的案例？" → 有。早期给所有组件都包了 `React.memo` 和 `useCallback`，结果代码臃肿 + 内存占用上升，但实际重渲染组件数没减少（因为 props 引用本身就每次都在变）。教训：先 Profiler 定位瓶颈，只在热点路径做优化，宁可代码清晰也不做防御式优化。
+
+**踩过的坑**：全量引入 ECharts + echarts-gl + echarts-wordcloud，bundle 暴增 800KB（gzip 后 +280KB），而项目只用到了折线图和柱状图。修复：改用 `echarts/core` 按需引入 + `echarts/charts` 只注 LineChart 和 BarChart，bundle 从 800KB → 150KB（gzip 后 280KB → 52KB）。以后所有重型可视化库（ECharts、AntV、three.js）都先跑 bundle-analyzer 确认体积再决定引入方式。
+
+**项目选型**：web-vitals 库 vs 手写 PerformanceObserver——选 web-vitals（1KB），因为它处理了大量边界情况（INP 需要 input 延迟 + 事件处理 + 下一帧绘制全链路，手写容易漏；CLS 的 `hadRecentInput` 过滤、LCP 多候选取最终值等），且 Google 官方维护，指标口径和 Lighthouse 一致。

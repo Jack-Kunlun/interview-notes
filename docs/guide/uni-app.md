@@ -119,6 +119,21 @@ export default {
 Vue 3 中 `beforeCreate` 和 `created` 被 `setup()` 替代，不要再同时使用 Options API 和 Composition API 混写，可能导致生命周期执行顺序不可预期。
 :::
 
+### 💬 面试深度
+
+**标准回答**：uni-app 生命周期分三层——应用级（onLaunch/onShow/onHide）、页面级（onLoad/onShow/onReady/onHide/onUnload）和组件级（Vue 标准钩子）。冷启动时执行顺序是 onLaunch → onLoad → onShow → mounted → onReady，注意 Vue 2 的 mounted 在 onReady 之前触发，因为组件先挂载完成，页面才整体渲染完毕。onShow 每次页面显示都会触发，适合做数据刷新和埋点；onUnload 用来清理定时器防止内存泄漏。
+
+**追问预判**：
+
+- Q: "onShow 和 mounted 都能做初始化，怎么选？" → A: onShow 每次页面显示都执行（包括从下一页返回），适合刷新数据；mounted 仅执行一次，适合初始化第三方库和绑定事件。如果用 onShow 做一次性初始化会重复执行造成浪费。
+- Q: "Vue 3 setup() 和 onLoad 谁先执行？" → A: setup() 在组件实例创建时立即执行，早于 onLoad。如果需要路由参数（options），必须在 onLoad 中获取，setup 中拿不到。
+
+**源码在哪**：uni-app 生命周期通过 `@dcloudio/uni-mp-vue` 桥接层实现，小程序端由 `@dcloudio/uni-mp-compiler` 将 Vue SFC 编译为小程序原生 Page/Component 定义，页面钩子映射到小程序 `Page({})` 的生命周期方法。
+
+**踩过的坑**：在 onShow 中调用 `uni.navigateTo` 未加条件判断，导致从子页面返回时再次触发跳转形成死循环。后果是页面不断自己跳自己，用户无法返回。修复：在 onShow 中加 `if (this.isFirstEnter)` 标志位，或使用 onLoad 处理一次性跳转逻辑。
+
+**项目选型**：Vue 2 + Options API 适合 uni-app 老项目维护，Vue 3 + Composition API + Pinia 适合新项目启航——后者逻辑复用性更强，但需注意 uni-app 的 Vue 3 对小程序部分 API 的兼容仍有坑（如 `getCurrentInstance` 在小程序端行为差异）。
+
 ---
 
 ## 条件编译
@@ -213,6 +228,21 @@ export default {
 ::: tip 最佳实践
 将条件编译代码封装为单独的适配层文件（如 `platform/h5.js`、`platform/mp.js`），通过动态 import 按需加载，减少核心业务代码中的 `#ifdef` 碎片化。
 :::
+
+### 💬 面试深度
+
+**标准回答**：条件编译是 uni-app 实现一套代码多端运行的核心机制，通过 `#ifdef` / `#ifndef` 预处理指令在编译时按平台剔除或保留代码块。它可以用于 template、script、style 甚至 pages.json 等配置文件，编译后不同平台的产物中只有对应平台的代码，零运行时开销。实战中建议把平台差异代码收敛到 `src/platform/` 适配层，业务代码只调统一接口，避免 `#ifdef` 满天飞。
+
+**追问预判**：
+
+- Q: "条件编译和运行时 uni.getSystemInfoSync().platform 判断怎么选？" → A: 编译时能确定的差异（如微信 API vs App SDK）用条件编译，零运行时体积；运行时才能确定的（如 iOS vs Android 安全区域高度）用平台 API 判断。原则：能用编译时方案就不用运行时。
+- Q: "多个平台共享一段逻辑怎么写？" → A: 用 `||` 组合：`#ifdef H5 || MP-WEIXIN`，或者反过来 `#ifndef APP-PLUS` 排除法覆盖大部分平台。
+
+**源码在哪**：uni-app 的条件编译由 `@dcloudio/uni-cli-shared` 包中的预处理器实现，在 webpack/vite 编译阶段通过正则匹配 `#ifdef` / `#ifndef` / `#endif` 注释并替换为目标平台代码。`@dcloudio/uni-mp-compiler` 在编译小程序时同样走这套预处理逻辑。
+
+**踩过的坑**：在 `#ifdef H5` 块内调用了 `wx.login()`，忘了外层还需要 `#ifndef H5` 保护，导致 H5 构建时直接报 `wx is not defined`。后果是 H5 构建失败，阻塞整个发版流程。修复：涉及平台专有 API 必须同时用 `#ifdef` 和 `#ifndef` 双向保护——`#ifdef MP-WEIXIN` 包裹微信 API，其余走通用逻辑，并用 ESLint 插件在 CI 中做静态检查。
+
+**项目选型**：简单项目直接在页面内条件编译即可；中大型项目强烈建议抽象 `platform/` 适配层——每个平台独立文件 + 统一接口导出，条件编译只出现在适配层内部，业务代码完全无感。
 
 ---
 
@@ -332,6 +362,21 @@ subPackageTask.onProgressUpdate(({ progress, totalBytesWritten, totalBytesExpect
 4. 使用 Webpack Bundle Analyzer 分析打包体积，找出冗余模块
 :::
 
+### 💬 面试深度
+
+**标准回答**：uni-app 分包是突破小程序 2MB 主包限制的核心策略。在 pages.json 中配置 `subPackages` 将非首屏页面拆入子包按需加载，配合 `preloadRule` 在首页静默预加载高频分包实现秒开体验。优化四步走——静态资源全部走 CDN、公共组件和工具库放主包 common 目录复用、第三方大库按分包粒度拆分、用 webpack-bundle-analyzer 分析包构成精准瘦身。
+
+**追问预判**：
+
+- Q: "主包 2MB 限制怎么破？" → A: 四步走——① 静态资源（图片/字体/图标）全部挪到 CDN，本地只保留首屏必需的小图标；② 非首屏页面全部拆入分包；③ 公共组件和工具库放主包 common，用分包异步化让子包引用主包资源而非重复打包；④ 用 webpack-bundle-analyzer 分析主包构成，找出大模块针对性替换（如 moment.js → dayjs 省 400KB+）。
+- Q: "分包预加载会不会拖慢首页？" → A: preloadRule 的下载是异步低优先级，在页面 onReady 后才触发，不阻塞首屏渲染。关键要控制预加载分包的体积（建议每个 < 500KB、不超过 2 个），WiFi 下预加载、4G 下按需加载更稳妥。
+
+**源码在哪**：分包配置在项目根目录 `pages.json` 的 `subPackages` 和 `preloadRule` 字段中声明。uni-app 编译时 `@dcloudio/uni-mp-compiler` 将该配置转换为对应小程序的 `app.json` 中的 `subpackages` 和 `preloadRule` 字段，微信客户端根据配置在运行时执行分包下载。
+
+**踩过的坑**：把 600KB 的 echarts 直接 import 在主包页面中，导致主包体积飙到 2.3MB 超出微信 2MB 限制，上传代码时报包体积超限错误。后果是发版卡了两天紧急拆分。修复：将图表页拆入分包，echarts 改为分包内按需引入，同时将 Canvas 渲染替换为小程序的 `ec-canvas` 组件。教训：第三方大库绝对不能放主包，CI 中应加入包体积检查门禁。
+
+**项目选型**：页面 ≤ 10 的小项目一个主包足够；20+ 页面的中大型项目必须分包，按业务域拆分（商品、订单、用户各一个分包），配合 preloadRule 保证体验不降级。
+
 ---
 
 ## nvue
@@ -427,6 +472,21 @@ export default {
 - CSS 不支持 `position: fixed`、百分比高度、`rem` 单位，推荐使用 `rpx`（750rpx 为屏幕宽度）
 - 不支持 `transition` 动画，替代方案使用 `animation` 模块或 bindingx
 :::
+
+### 💬 面试深度
+
+**标准回答**：nvue 是 uni-app App 端的原生渲染引擎，基于 weex，用原生组件替代 WebView 渲染。它的核心优势是长列表性能——使用 `<list>` + `<cell>` 实现原生回收复用，万级列表滚动稳定 60fps，而 WebView 渲染在同样场景下可能掉到 30fps 以下。但代价是 CSS 支持受限（仅 flex 布局、不支持百分比和 rem），且只能用于 App 端，不能跨端复用。
+
+**追问预判**：
+
+- Q: "nvue 和 vue 页面能混用吗？" → A: 可以混用，同一个 App 中可以同时存在 .vue 和 .nvue 页面，路由跳转无差异。但 nvue 页面之间共享原生渲染层，vue 页面之间共享 WebView，两种页面之间的切换有额外开销（原生 ↔ WebView 上下文切换），不建议高频来回跳转。
+- Q: "什么时候必须用 nvue？" → A: 长列表超过 500 条且需要丝滑滚动时（如朋友圈 Feed 流）、地图上需要拖拽大量自定义 Marker 时、视频需要嵌入滚动列表且不能有层级遮挡时。一般表单页和展示页用 vue 页面即可。
+
+**源码在哪**：nvue 的渲染引擎基于 weex 内核（`@dcloudio/uni-app-plus-nvue`），编译时 `@dcloudio/uni-mp-compiler`（App 端为 `@dcloudio/vue-cli-plugin-uni`）将 .nvue 文件编译为 weex 可识别的 JS Bundle，在 App 端由原生 weex 容器加载渲染。
+
+**踩过的坑**：在 nvue 页面中用了 `position: fixed` 做吸顶导航，结果在 iOS 上完全不生效（nvue 不支持 fixed 定位）。后果是导航栏随页面滚动消失，用户体验很差。修复：改用 nvue 支持的 flex 布局 + `<header>` 固定区域实现吸顶效果，将导航放在 `<list>` 外部，利用 nvue 默认的列布局实现头部固定、列表滚动。教训：nvue 开发前务必过一遍 CSS 限制清单。
+
+**项目选型**：纯信息展示 App 不需要 nvue；社交/电商类 App 的长列表 Feed 和商品列表推荐用 nvue 提升体验，其余页面保持 .vue 享受完整 CSS 能力。
 
 ---
 
@@ -526,6 +586,21 @@ plus.share.sendWithSystem({ type: 'text', content: '分享内容' })
 | 适合场景 | 多端覆盖、快速迭代、中大型项目 | 仅微信生态、对性能和体积极致要求 |
 
 **综合建议**：如果产品需要覆盖微信小程序以外的平台（H5、App、支付宝小程序等），uni-app 是当前性价比最高的方案。如果仅做微信小程序且对启动速度和包体积有极致要求，原生开发更合适。对于大多数中小型商业项目，uni-app 的效率优势远超其微弱的性能开销。
+
+### 💬 面试深度
+
+**标准回答**：uni-app 性能优化就四板斧——分包减小首屏体积、图片懒加载降低带宽、长列表虚拟化减少 DOM 节点、预加载下一页提升感知速度。我在项目中通过分包把主包从 2.4MB 降到 1.6MB，首屏加载快了 40%；列表页接入 recycle-view 虚拟滚动，1000 条数据从卡顿到丝滑。跨端兼容上，编译时差异用条件编译、运行时差异用平台 API、业务层抽象 platform 适配层，三者配合基本能覆盖 95% 的场景。
+
+**追问预判**：
+
+- Q: "uni-app 和 Taro 怎么选？" → A: uni-app 优势是 HBuilderX 一键发布多端、社区插件多、Vue 技术栈上手快；Taro 优势是 React/Vue 多框架支持、编译时优化更激进、京东系项目天然亲近。如果团队是 Vue 技术栈且需要覆盖 App 端，首选 uni-app；如果是 React 技术栈或只做小程序，Taro 也很成熟。
+- Q: "uni-app 包体积比原生小程序大约多少？对启动速度影响多大？" → A: uni-app 框架基础体积约 100-150KB（压缩后），在 2MB 主包中占约 5-8%。启动速度比原生慢约 100-300ms（框架初始化开销），对绝大多数业务场景可忽略。如果启动速度是核心指标（如小游戏、工具类即用即走场景），原生更合适。
+
+**源码在哪**：uni-app 核心编译链路——`@dcloudio/uni-cli-shared`（共享工具）→ `@dcloudio/uni-mp-compiler`（小程序编译）→ `@dcloudio/uni-mp-vue`（Vue 运行时桥接）。App 端走 `@dcloudio/vue-cli-plugin-uni` → weex/nvue 渲染管线。调试时可查看 `node_modules/@dcloudio/` 下的源码，或 clone uni-app 仓库断点调试编译流程。
+
+**踩过的坑**：在 uni-app 项目中使用 Vue 生态的 `vue-lazyload` 图片懒加载插件，小程序端完全不生效且无报错（因为插件依赖 DOM API，小程序无 DOM）。后果是列表页上百张图片同时加载，低端机直接白屏。修复：替换为 uni-app 原生 `<image lazy-load>` 属性，或使用 uni-ui 的 `<uni-load-more>` 配合 Intersection Observer 自行实现。教训：Vue 生态插件不能无脑搬进 uni-app，必须确认是否依赖 DOM/BOM API。
+
+**项目选型**：需覆盖微信 + H5 + App 三端 → uni-app 性价比最高；仅微信且 React 技术栈 → Taro；仅微信且对性能极致要求 → 原生。大多数商业项目选 uni-app 不会错。
 
 ---
 

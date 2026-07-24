@@ -96,6 +96,20 @@ onMounted(() => {
 })
 ```
 
+### 💬 面试深度
+
+**标准回答**：ECharts 是 option 驱动的声明式图表库——你只需描述"我想要什么样的图表"，不需要关心绘制细节。核心流程是 `echarts.init(dom)` 初始化实例，再 `setOption(option)` 传入配置，ECharts 内部做增量更新，只重绘变化的部分。`notMerge` 参数控制是否与旧配置合并：默认 `false` 做深度合并适合增量换数据，设为 `true` 则完全替换适合切换图表类型。配合 `ResizeObserver` 监听容器尺寸调用 `chart.resize()`，就能实现自适应布局。
+
+**追问预判**：
+- "ECharts 和 Chart.js / AntV G2 怎么选？"——ECharts 开箱即用、中文生态好、适合国内业务大屏场景；G2 图形语法更灵活，适合定制化 BI 分析；Chart.js 轻量（~200KB vs ECharts ~1MB 全量），适合海外项目或简单图表。国内中后台管理系统首选 ECharts。
+- "为什么 resize 用 ResizeObserver 而不是 window.resize？"——`window.resize` 只在窗口大小变化时触发，如果侧边栏展开收起、父容器 flex 布局变化导致图表容器尺寸改变，它完全感知不到。`ResizeObserver` 精确监听目标元素的 content-box 变化，只在该容器真的变时才触发重绘，更精准也避免无效调用。
+
+**源码在哪**：`echarts/src/core/echarts.ts`——`init()` 和 `setOption()` 的入口都在这里，`resize()` 方法也定义在 ECharts 类上。
+
+**踩过的坑**：全量引入 ECharts（`import * as echarts from 'echarts'`）导致打包后 bundle 暴增约 800KB。后果是首屏加载从 2s 飙到 5s+，Lighthouse 评分直接红了。修复方案：改为按需引入——`import { BarChart, LineChart, PieChart } from 'echarts/charts'` 配合 `import { GridComponent, TooltipComponent } from 'echarts/components'`，按图表类型和组件逐个注册，最终 bundle 只增加约 120KB。
+
+**项目选型**：中后台 Dashboard 首选 ECharts（组件丰富、文档好）；BI 分析平台考虑 AntV G2（图形语法灵活、自定义能力强）；海外轻量项目用 Chart.js（bundle 小、国际化友好）。
+
 ## 进阶考点 ⭐⭐
 
 ### 大数据量优化：`large: true` / 降采样（`sampling: 'lttb'`）/ 数据集（`dataset`）
@@ -157,3 +171,17 @@ const option = {
   }]
 }
 ```
+
+### 💬 面试深度
+
+**标准回答**：大数据量优化的核心三板斧是 `large: true` 开启大数据模式跳过图形元素创建、`sampling: 'lttb'` 用最大三角形三桶算法做降采样保持视觉不失真、`dataset` 让多个 series 共享同一份数据源避免重复传输。渲染器方面默认 Canvas 适合万级以上数据，SVG 适合需要无损缩放或富交互的少量图形场景。地图可视化需要手动注册 GeoJSON，通过 `visualMap` 做区域着色。
+
+**追问预判**：
+- "大屏数据量大时还有什么优化手段？"——除了 LTTB 降采样，还可以配合 `dataZoom` 按需渲染可视区域，用户缩放到哪个区间就只请求那个区间的数据；Web Worker 把数据聚合计算放到子线程避免阻塞主线程；`series` 过多的图表考虑用 `notMerge: true` 一次性替换 option 而不是多次增量 setOption。
+- "图表切换时有什么容易忽略的问题？"——切换图表类型时忘了 `dispose()` 旧实例就直接 `init()` 新实例，会导致 DOM 中存在多个 Canvas 节点，旧实例的 `resize` / `click` 等事件监听依然挂载，产生内存泄漏和事件残留。正确做法是切换前先调 `chart.dispose()` 释放旧实例，或者复用同一个实例直接 `setOption(newOption, { notMerge: true })`。
+
+**源码在哪**：大数据模式核心逻辑在 `echarts/src/chart/line/LineView.ts`（`large` 分支走 `_renderLarge` 直接用 CanvasPath 绘制）；降采样算法在 `echarts/src/util/sampling/lttb.ts`；`dataset` 变换逻辑在 `echarts/src/data/SourceManager.ts`。
+
+**踩过的坑**：Vue 组件中在 `watch` 里监听数据变化后调用 `setOption`，但组件卸载时忘了调用 `chart.dispose()`。后果：每次进入页面都创建新实例，切走再回来图表叠加、hover 事件触发多次 tooltip 闪烁，页面停留 5 分钟后内存占用从 40MB 飙到 200MB+。修复：在 `onBeforeUnmount` / `useEffect` cleanup 中必须调用 `chart.dispose()` 并置空引用，同时检查 `chart.isDisposed()` 防止重复操作。
+
+**项目选型**：企业大屏选 ECharts + `large` + `sampling` 组合（生态成熟、性能调优方案多）；轻量嵌入场景用 uPlot（~45KB，百万级数据无压力）；专业 GIS 可视化不要硬套 ECharts 地图，直接用 Mapbox / deck.gl。

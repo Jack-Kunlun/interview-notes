@@ -265,6 +265,25 @@ export default defineConfig({
 })
 ```
 
+
+### 💬 面试深度
+
+**标准回答**：Vite 为什么快？开发环境用 esbuild（Go 编写）做依赖预构建，速度是 JS 工具链的 10~100 倍；同时基于浏览器原生 ESM 实现按需编译——只有被实际 import 的模块才会被编译返回，无需全量打包即可启动 dev server，冷启动毫秒级。生产构建切换为 Rollup，因为 Rollup 的 Tree Shaking、代码分割和插件生态比 esbuild 更成熟，能输出更优的生产包。这种"开发 esbuild + 生产 Rollup"的双引擎架构是 Vite 最大的设计亮点。
+
+**追问预判**：
+- Q: "Vite 开发这么快，为什么生产不用 esbuild 一把梭？" → esbuild 虽然快，但设计目标是打包工具而非优化工具，对 ES 新语法支持不完整（如装饰器），且 Tree Shaking 能力不如 Rollup 精细。生产构建的首要是产物质量，速度次之。
+- Q: "proxy 配了但请求不通怎么办？" → 检查 `changeOrigin: true` 是否设置（后端按 Host 头校验时必开），检查 `rewrite` 规则是否把路径改写正确，确认后端服务是否在目标端口运行。
+
+**源码在哪**：
+- Vite 插件的 PluginContainer 实现：`packages/vite/src/node/server/pluginContainer.ts` — 管理 Rollup 兼容钩子的调度
+- esbuild 预构建逻辑：`packages/vite/src/node/optimizer/index.ts` — `optimizeDeps` 函数入口
+- 开发服务器 ESM 按需编译：`packages/vite/src/node/server/transformRequest.ts` — 核心转换逻辑
+
+**踩过的坑**：Vite 的 `resolve.alias` 配置用了相对路径 `'@': './src'` 而不是 `resolve(__dirname, 'src')`，结果在某些深层子目录下 `import` 解析失败，报 "Could not resolve" 错误。原因：alias 的相对路径是相对于当前文件而非项目根目录。修复：始终用 `path.resolve(__dirname, 'src')` 获取绝对路径。
+
+**项目选型**：新项目选 Vite 而非 Webpack —— 冷启动毫秒级、HMR <100ms、配置简洁（无需 loader 链），开发体验碾压；但 Webpack 存量项目不强行迁移，用 Rspack 做渐进式替换成本更低。
+
+
 ### Webpack 配置详解 ⭐⭐
 
 Webpack 的配置文件（`webpack.config.js`）围绕五大核心概念构建完整的构建流水线：从 entry 入口出发，经由 loader 管道转换各类资源，通过 plugin 在构建各阶段注入自定义行为，最终按照 output 规则输出产物，而 resolve 决定了模块如何被定位和解析。
@@ -388,6 +407,26 @@ module.exports = {
 | 速度 | 慢（JS 实现） | 较慢（调用 tsc） | **极快**（Go 实现） |
 | 类型检查 | 不包含 | 包含（可关闭） | 不包含 |
 | 适用场景 | 经典方案，生态完善 | 需要编译期类型检查 | 追求构建速度 |
+
+
+### 💬 面试深度
+
+**标准回答**：Webpack 的核心是一条 entry → loader → plugin → output 的构建流水线。Loader 是"翻译器"，将 TypeScript、CSS、图片等非 JS 资源转为 Webpack 可处理的模块；Plugin 是"功能扩展器"，通过 Tapable 事件体系在构建生命周期的各个阶段（编译、优化、输出）注入自定义行为。Webpack 5 内置了 filesystem cache，将中间结果写入磁盘，二次构建速度提升 60%~80%。
+
+**追问预判**：
+- Q: "Loader 和 Plugin 的本质区别？能不能用 Plugin 替代 Loader？" → Loader 处理的是文件内容转换（输入源文件，输出 JS 模块），工作在模块解析阶段；Plugin 可以访问整个构建生命周期（compiler + compilation hooks），能做 Loader 做不到的事：生成额外文件、修改输出资源、注入环境变量。不能互相替代——Loader 管"翻译"，Plugin 管"编排"。
+- Q: "Webpack 构建太慢怎么排查和优化？" → 先用 `speed-measure-webpack-plugin` 定位慢 loader；然后三板斧：(1) `ts-loader` 加 `transpileOnly: true` + `ForkTsCheckerWebpackPlugin` 独立类型检查；(2) 用 `esbuild-loader` 替换 `babel-loader`；(3) 开启 `cache: { type: 'filesystem' }`。
+
+**源码在哪**：
+- Webpack 编译引擎入口：`lib/Compiler.js` — `Compiler` 类，管理整个构建生命周期
+- 单次编译对象：`lib/Compilation.js` — `Compilation` 类，管理模块图、chunk、资源
+- 模块解析算法：`enhanced-resolve` 包 — 实现 `resolve.alias`、`resolve.extensions` 等
+- Tapable 事件系统：`tapable` 包 — 所有 hooks 的底层实现
+
+**踩过的坑**：`ts-loader` 默认开启类型检查（调用 tsc），忘了加 `transpileOnly: true`，每次构建多花 30s+。正确做法是 `ts-loader` 配置 `transpileOnly: true` 只做转译，另配 `ForkTsCheckerWebpackPlugin` 在独立进程中做类型检查，构建 + 检查互不阻塞。
+
+**项目选型**：Webpack 存量项目多、生态最成熟、复杂场景兼容性最好；但新项目不再推荐从零搭建 Webpack，用 Vite（中小型）或 Rspack（大型且需要 Webpack 兼容）更划算。
+
 
 ### 自定义插件开发 ⭐⭐⭐
 
@@ -541,6 +580,92 @@ export function fileStatsPlugin(options?: { showDetails?: boolean }): Plugin {
 | 配置方式 | `new Plugin(options)` | `plugin(options)` 工厂函数 |
 | 代码转换 | compilation hooks 操作 source | `transform(code, id)` 返回 code |
 | 适用版本 | Webpack 4/5 | Vite 2+ |
+
+
+### 💬 面试深度
+
+**标准回答**：构建工具插件的本质是在构建生命周期的特定节点注入自定义行为。Webpack 插件是一个带 `apply(compiler)` 方法的类，通过 `compiler.hooks`（Tapable 事件）挂载到构建全流程；Vite 插件是一个带 `name` 和钩子函数的对象，兼容 Rollup 插件接口，同时扩展了 Vite 专属钩子如 `transformIndexHtml`。最常用的钩子是 `transform`（代码转换）和 `emit`/`closeBundle`（产物处理）。开发插件关键是选对 hook：想改源码用 `transform`，想改产物用 `emit`/`generateBundle`。
+
+**追问预判**：
+- Q: "给一个实际开发插件的场景？" → 开发一个检查未翻译文案的 Webpack 插件：在 `compiler.hooks.emit` 阶段遍历 `compilation.assets` 中的 JS 文件，用正则匹配中文文案（`/[\\u4e00-\\u9fa5]+/g`），将匹配结果生成一份未翻译文案报告（JSON/Markdown），并可选地让构建失败（`callback(new Error(...))`）。这种插件在出海/i18n 项目中非常实用。
+- Q: "`compiler.hooks.emit` 和 `compilation.hooks.processAssets` 什么时候用哪个？" → `emit` 在资源即将写入磁盘前触发，适合做最终检查和添加额外资源；`processAssets` 是 Webpack 5 新增的更精细的钩子，可以指定处理阶段（`PROCESS_ASSETS_STAGE_*`），适合需要与其他插件协调执行顺序的场景。
+
+**实战：检查未翻译文案的 Webpack 插件**：
+
+```js
+// webpack-plugin-i18n-check.js — 检查源码中的中文字符串
+class I18nCheckPlugin {
+  constructor(options = {}) {
+    this.options = { failOnError: false, outputFile: 'i18n-report.md', ...options }
+  }
+
+  apply(compiler) {
+    compiler.hooks.emit.tapAsync('I18nCheckPlugin', (compilation, callback) => {
+      const chineseRegex = /[\u4e00-\u9fa5\u3000-\u303f\uff00-\uffef]+/g
+      const report = []
+
+      for (const [filename, asset] of Object.entries(compilation.assets)) {
+        if (!filename.endsWith('.js')) continue
+        const source = asset.source()
+        const matches = [...source.matchAll(chineseRegex)]
+
+        for (const match of matches) {
+          // 排除注释中的中文（简化版）
+          report.push({
+            file: filename,
+            text: match[0].slice(0, 40),
+            // 粗略定位：截取前后 20 字符作为上下文
+            context: source.slice(
+              Math.max(0, match.index - 20),
+              match.index + match[0].length + 20
+            ).replace(/\n/g, '\\n'),
+          })
+        }
+      }
+
+      if (report.length > 0) {
+        const md = [
+          '# 未翻译文案报告',
+          `> 共 ${report.length} 处中文文案需要翻译`,
+          '',
+          '| 文件 | 文案 | 上下文 |',
+          '|------|------|--------|',
+          ...report.map(r => `| ${r.file} | \`${r.text}\` | \`${r.context}\` |`),
+        ].join('\\n')
+
+        // 将报告作为新资源输出
+        compilation.assets[this.options.outputFile] = {
+          source: () => md,
+          size: () => md.length,
+        }
+
+        console.warn(`\\n⚠️  [I18nCheck] 发现 ${report.length} 处未翻译文案，详见 ${this.options.outputFile}`)
+
+        if (this.options.failOnError) {
+          return callback(new Error(`构建中止：存在 ${report.length} 处未翻译文案`))
+        }
+      } else {
+        console.log('\\n✅ [I18nCheck] 未发现未翻译文案')
+      }
+
+      callback()
+    })
+  }
+}
+
+module.exports = I18nCheckPlugin
+```
+
+**源码在哪**：
+- Webpack Tapable 体系：`tapable` 包 — `SyncHook` / `AsyncSeriesHook` 等全部 hook 类型
+- Webpack Compiler：`lib/Compiler.js` — `hooks` 属性定义所有 compiler 级别 hooks
+- Webpack Compilation：`lib/Compilation.js` — `hooks` 属性定义所有 compilation 级别 hooks
+- Vite Plugin 类型定义：`packages/vite/src/node/plugin.ts` — `Plugin` 接口完整定义
+
+**踩过的坑**：写了一个 Vite 插件，在 `transform` 钩子里对每个文件做正则替换，忘了加 `if (id.includes('node_modules')) return` 判断，导致 `node_modules` 下所有依赖都被遍历和正则匹配，构建直接卡了 5 分钟。修复：所有 `transform` / `load` 钩子第一行先排除 `node_modules`，除非明确需要处理依赖。
+
+**项目选型**：自定义插件优先考虑通用性 —— 用 Rollup 兼容格式可同时给 Vite 和 Rollup 项目使用；如果只面向 Webpack，用 Tapable hooks 可做更深度的构建流程控制。
+
 
 ### 大文件上传 ⭐⭐⭐
 
@@ -759,3 +884,21 @@ async function mergeChunks(fileHash: string, fileName: string, totalChunks: numb
 | 并发控制 | N/A | Promise 池限制 4~6 并发 |
 | 服务端复杂度 | 低 | 需维护分片状态 + 合并逻辑 |
 | 进度感知 | 单次 `onprogress` | 分片粒度进度，更精确 |
+
+### 💬 面试深度
+
+**标准回答**：大文件上传的核心三板斧：分片 + 断点续传 + 并发控制。前端用 `Blob.prototype.slice()` 将文件切成 1~5MB 的分片，用 `spark-md5` 增量计算文件 hash（不把整个文件读进内存），然后通过 Promise 池控制 4~6 个并发上传。秒传的关键是复用 spark-md5 计算出的文件 hash —— 上传前先调 `checkFile` 接口查 hash 是否已存在，存在则直接返回成功，零流量完成"上传"。断点续传同样依赖 hash：`checkChunk` 接口返回已上传分片列表，前端只传缺失分片。
+
+**追问预判**：
+- Q: "秒传怎么实现的？如果两个不同文件 hash 碰撞了怎么办？" → 秒传流程：文件选好后，先算 spark-md5 → 调 `checkFile` 接口 → 服务端查 hash 是否已有完整文件 → 有则直接返回上传成功（可附加文件 URL）。MD5 碰撞在工程场景概率极低（< 1/2^128），可忽略；若对安全性要求极高（如金融合规），可追加文件大小（size）和文件名做联合校验，甚至用 SHA-256 替代 MD5。
+- Q: "分片大小选多大最优？太大或太小有什么问题？" → 推荐 1~5MB。太小（<512KB）请求数爆炸，HTTP 握手开销占比高；太大（>10MB）单个分片失败重传成本高，且可能超过服务端 `maxRequestBodySize`。也要参考实际网络状况 —— 弱网环境适当缩小分片（如 1MB），以降低失败重传代价。
+
+**源码在哪**：
+- spark-md5 增量计算 API：`new SparkMD5.ArrayBuffer()` → `spark.append(chunkBuffer)` → `spark.end()` 拿到最终 MD5，核心是避免一次性 `readAsArrayBuffer` 整个大文件导致 OOM
+- Blob 分片：`file.slice(start, end)` 返回 `Blob`，本质是引用而非拷贝，不会产生额外内存开销
+- Promise 池模式：`Promise.race(executing)` 是并发窗口的"阀门"，完成一个才推进下一个
+
+**踩过的坑**：用 `FileReader.readAsArrayBuffer(file)` 直接读 2GB 文件算 MD5，浏览器内存直接飙到 4GB+ 然后 OOM 崩溃（JS heap out of memory）。根因：`readAsArrayBuffer` 会把整个文件加载到内存。修复：改用 `file.slice()` 分片 + `spark-md5` 增量计算，每次只读一片（如 2MB）到内存，hash 计算完后 GC 回收，全程内存占用控制在分片大小级别。
+
+**项目选型**：自研分片上传 vs 云服务 SDK（阿里云 OSS / 腾讯云 COS）—— 云厂商 SDK 自带分片 + 断点续传 + 秒传，服务端零开发，但费用按存储+流量计费；自研方案灵活度高（可自定义分片策略、存储后端），但服务端需自己维护分片状态（Redis）+ 合并逻辑，工作量翻倍。中小团队优先用云 SDK。
+

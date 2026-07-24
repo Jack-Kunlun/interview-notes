@@ -39,6 +39,21 @@ watch([count, () => state.list], ([newC, newL]) => {
 })
 ```
 
+### 💬 面试深度
+
+**标准回答**：Vue 3 的响应式核心就三个 API——`ref` 包基本类型、`reactive` 包对象，`computed` 做缓存计算，`watch` 做显式监听。ref 得用 `.value` 读写是因为它内部是一个 getter/setter 对象，模板里自动解包所以不用写 `.value`；reactive 不能解构，解构会丢响应式，得用 `toRefs` 转一下。computed 和 watch 的最大区别是 computed 有缓存、同步返回结果，watch 没有缓存、适合做异步请求这种副作用。
+
+**追问预判**：
+- *ref 和 reactive 怎么选？* → 基本类型、需要整体替换、或者传给组合函数返回值，用 ref；一个表单对象、配置对象这种内部属性频繁变但整体不替换的，用 reactive。实际项目里我更多用 ref，因为 ref 对 TS 类型推导更友好，而且不存在解构丢失响应式的问题。
+- *watchEffect 和 watch 什么时候用哪个？* → 不需要新旧值对比、只是想"依赖变了就执行"的时候用 watchEffect，比如打日志、自动保存草稿。需要拿到 oldVal/newVal 做条件判断、或者异步请求需要防抖的，用 watch。
+
+**源码在哪**：`packages/reactivity/src/ref.ts`、`packages/reactivity/src/reactive.ts`、`packages/reactivity/src/computed.ts`、`packages/runtime-core/src/apiWatch.ts`
+
+**踩过的坑**：有一次我用 `watch(() => state.list, callback, { deep: true })` 监听一个 5000 条数据的大列表，每次列表里任何一个字段变化都触发深度遍历，页面直接卡死。后来改成用 `watchEffect` 配合 `shallowRef`，只在真正需要响应变化的字段上包 `ref`，性能立马恢复正常。
+
+**项目选型**：ref/reactive 这层没有替代品——这是 Vue 3 响应式系统的根基，所有上层 API 都依赖它们。
+
+
 ### 组件通信：props / emits / provide-inject / Pinia / eventBus
 
 | 方式 | 方向 | 适用场景 |
@@ -71,6 +86,21 @@ import { inject } from 'vue'
 const theme = inject('theme', 'light')  // 第二个参数为默认值
 ```
 
+### 💬 面试深度
+
+**标准回答**：Vue 组件通信最常用的就三层——父子用 props/emits，跨层级用 provide/inject，全局状态用 Pinia。provide/inject 适合深层嵌套比如表单组件里的字段注入，但不建议当全局状态管理用，因为它数据流不透明，后面的人很难追踪数据从哪来的。eventBus 在 Vue 3 里官方已经移除了，可以用 `mitt` 这个小库替代，体积才 200 字节。
+
+**追问预判**：
+- *provide/inject 和 Pinia 什么时候用哪个？* → provide/inject 是组件树级别的依赖注入，适合"一组关联组件"之间共享上下文（比如表单校验规则、主题色），数据流向是单向的祖先到后代。Pinia 是全局的、跨路由、跨模块的状态管理，有 devtools 支持，适合用户信息、购物车这种全局状态。简单判断：如果你的数据只在某个 Feature 的子组件里用，provide/inject；如果多个页面都要用，Pinia。
+- *props 怎么做类型校验？* → Vue 3 的 `<script setup lang="ts">` 里直接用 `defineProps<{ title: string; count?: number }>()` 做 TS 类型声明，运行时校验可以用 `defineProps({ title: { type: String, required: true } })`，或者用 `zod` 这类校验库配合 validator 函数。
+
+**源码在哪**：`packages/runtime-core/src/componentProps.ts`、`packages/runtime-core/src/apiInject.ts`
+
+**踩过的坑**：用 provide 传了一个 ref 对象，子组件里 inject 后直接解构了 `.value` 去用，结果后面的 computed 里引用的还是解构后的纯值，provide 端的值变了但 computed 不更新。正确做法是子组件里始终保持对注入 ref 的 `.value` 引用，或者用 `readonly` 包一层传给 provide 避免子组件意外修改。
+
+**项目选型**：全局状态管理选 Pinia 不选 Vuex——Pinia 没有 mutations、TS 支持开箱即用、体积更小、Setup Store 写法跟 Composition API 一致，老项目迁移成本也低。
+
+
 ### Vue 3 生命周期：setup → onMounted → onUnmounted
 
 Vue 3 Composition API 的生命周期钩子统一为 `onXxx` 前缀；`setup()` 本身就替代了 Vue 2 的 `beforeCreate` 和 `created`（此时已能访问响应式数据，无需单独钩子）。销毁相关钩子也从 `destroy` 更名为 `unmount`，语义更准确。
@@ -100,6 +130,21 @@ onUnmounted(() => {
 })
 </script>
 ```
+
+### 💬 面试深度
+
+**标准回答**：Vue 3 的生命周期记住一条线就行：setup 初始化 → onBeforeMount 编译完成但 DOM 还没挂 → onMounted DOM 挂完可以操作 → onBeforeUpdate 数据变了 DOM 还没更新 → onUpdated DOM 更新完 → onBeforeUnmount 卸载前做清理 → onUnmounted 卸载完。setup 本身等价于 Vue 2 的 beforeCreate 和 created，此时已经可以访问响应式数据，所以这两个钩子在 Vue 3 里基本用不到。销毁相关的从 destroy 改名成 unmount，语义更准了。
+
+**追问预判**：
+- *onMounted 里能拿到 DOM 吗？* → 能，onMounted 回调执行时组件 DOM 已经挂载到页面上，`document.getElementById` 或 `ref` 模板引用都能拿到。如果要用 `nextTick`，是因为想在同一个同步代码块里操作刚刚更新完的 DOM，而不是因为 onMounted 里拿不到 DOM。
+- *父组件和子组件的生命周期执行顺序？* → 挂载阶段：父 beforeMount → 子 beforeMount → 子 mounted → 父 mounted。更新阶段：父 beforeUpdate → 子 beforeUpdate → 子 updated → 父 updated。卸载阶段：父 beforeUnmount → 子 beforeUnmount → 子 unmounted → 父 unmounted。
+
+**源码在哪**：`packages/runtime-core/src/component.ts`（`setupRenderEffect` 函数中按顺序调用生命周期钩子）、`packages/runtime-core/src/apiLifecycle.ts`
+
+**踩过的坑**：在 onMounted 里用 `setInterval` 轮询数据，组件切走时忘了清，导致切回来时开了两个定时器，数据请求翻倍。正确做法是在 onMounted 里存下 timerId，onBeforeUnmount 里 `clearInterval`。更好的做法是用 `useIntervalFn`（VueUse）或者 `watchEffect` + `onCleanup` 自动管理。
+
+**项目选型**：生命周期钩子没有替代选择——它们是 Vue 组件模型的核心，但可以通过 VueUse 的 `useIntervalFn`、`useEventListener` 等组合函数减少手动管理生命周期的代码。
+
 
 ### v-model 在 Vue 3 中的变化
 
@@ -133,6 +178,21 @@ const props = defineProps<{
 // props.modelModifiers?.uppercase === true → 子组件内可据此转换大小写
 ```
 
+### 💬 面试深度
+
+**标准回答**：Vue 3 的 v-model 有三个大变化：第一，默认绑定的 prop 从 `value` 改成 `modelValue`，事件从 `input` 改成 `update:modelValue`；第二，支持多个 v-model，通过参数区分，比如 `v-model:title` 绑定 `title` prop 和 `update:title` 事件；第三，支持自定义修饰符，像 `v-model.uppercase` 会在子组件里通过 `modelModifiers` prop 拿到修饰符标记。这几个改动让 v-model 从"只能有一个"变成可以按需绑定多个值，封装表单组件时特别好用。
+
+**追问预判**：
+- *多 v-model 和 .sync 修饰符的关系？* → Vue 2 里用 `.sync` 实现"双向绑定多个 prop"，`v-bind:title.sync` 等价于 `:title` + `@update:title`。Vue 3 把 `.sync` 干掉了，统一用 `v-model:title` 语法，更直观。本质上 `v-model:xxx` 就是 Vue 2 `.sync` 的升级版。
+- *自定义修饰符怎么在子组件里实现？* → 假设父组件写 `v-model.uppercase="text"`，子组件里 `defineProps` 声明 `modelModifiers?: { uppercase: boolean }`，然后在 `emit('update:modelValue', value)` 之前检查 `props.modelModifiers?.uppercase` 来决定是否转大写。如果带参数的 v-model 加修饰符比如 `v-model:title.capitalize`，修饰符对应的 prop 名变成 `titleModifiers`，规律是 `arg + 'Modifiers'`。
+
+**源码在哪**：`packages/compiler-dom/src/transforms/vModel.ts`（编译时展开 v-model 指令）、`packages/runtime-core/src/components/componentProps.ts`（运行时处理 modelModifiers）
+
+**踩过的坑**：封装一个表单组件时，对 `v-model:title` 和 `v-model:content` 分别定义了 emit，但忘了声明对应的 `titleModifiers` 和 `contentModifiers` prop，结果父组件用了 `v-model:title.trim` 不生效，排查了半天才发现是修饰符 prop 没声明，编译器不会自动帮你加。
+
+**项目选型**：Vue 3 多 v-model 直接替代了 Vue 2 的 `.sync`，封装复杂表单组件（比如一个用户表单有 name、email、phone 三个双向绑定字段）时比 Vue 2 的方案干净很多。
+
+
 ### Teleport / Suspense 的使用场景
 
 **Teleport** 将组件模板渲染到 DOM 中指定位置（如 `<body>` 末尾），常用于 Modal / Toast / 通知等需要脱离父级 `overflow: hidden` 或 `z-index` 层叠上下文的场景。
@@ -155,6 +215,21 @@ const props = defineProps<{
   </template>
 </Suspense>
 ```
+
+### 💬 面试深度
+
+**标准回答**：Teleport 解决的是"组件逻辑在父组件但 DOM 要渲染到别的地方"的问题，最常见的场景就是 Modal、Toast、通知中心——这些组件如果放在父组件的 DOM 树里，很容易被 overflow:hidden 裁剪或者被 z-index 层叠上下文坑死。Suspense 解决的是异步组件加载的体验问题，在异步依赖就绪之前展示 fallback 内容，避免白屏。两者都是 Vue 3 内置组件，不需要额外安装。
+
+**追问预判**：
+- *Teleport 和 CSS position:fixed 有什么区别？* → fixed 定位只能让元素相对视口定位，但元素还是在原本的 DOM 层级里，父级的 `overflow:hidden`、`filter`、`transform` 仍然会把它裁掉或改变它的包含块。Teleport 直接把 DOM 节点移到 `<body>` 末尾，彻底脱离父级 DOM 层级，CSS 怎么限制都不影响。
+- *Suspense 的错误处理怎么做？* → Suspense 本身不处理错误，要搭配 `onErrorCaptured` 或 `<ErrorBoundary>` 组件。更推荐用 `defineAsyncComponent` 的 `errorComponent` 配置，或者把异步请求包在 `try/catch` 里，用 `ref` 存储错误状态，fallback 里判断错误状态来决定展示 loading 还是 error。
+
+**源码在哪**：`packages/runtime-core/src/components/Teleport.ts`、`packages/runtime-core/src/components/Suspense.ts`
+
+**踩过的坑**：用 Teleport 把 Modal 传到 body 后，在父组件里用 `v-if` 控制 Modal 显示/隐藏，结果 Modal 关闭时报了一个 "Cannot read properties of null" 错误。原因是在 onUnmounted 里引用了父组件 provide 的数据，Teleport 改变了卸载时序。解决方案是把清理逻辑移到 Modal 组件自己的生命周期里，不依赖父组件的上下文。
+
+**项目选型**：Teleport 和 Suspense 都是 Vue 3 原生内置组件，没有替代选择。如果项目还在 Vue 2，Modal 传 body 要用 `this.$el` 手动 appendChild 到 document.body，Suspense 功能在 Vue 2 里只能用 `v-if` + 动态组件手动模拟，远没有 Vue 3 干净。
+
 
 ## 进阶考点 ⭐⭐
 
@@ -405,6 +480,21 @@ JavaScript AST: {
   ▼ generate
 render: h('input', { value: msg, onInput: e => msg = e.target.value })
 ```
+
+### 💬 面试深度
+
+**标准回答**：v-model 本质是编译器层面的语法糖——在 compile 阶段，编译器根据元素类型和指令参数，把 `v-model` 展开为对应的 prop 绑定和事件监听。原生 input 展开为 `:value + @input`，checkbox 展开为 `:checked + @change`，组件上展开为 `:modelValue + @update:modelValue`。Vue 3 一个关键升级是支持多 v-model 和自定义修饰符，修饰符通过 `modelModifiers` prop 传给子组件，子组件可以据此做 trim、uppercase 等转换。
+
+**追问预判**：
+- *v-model 和手动 :value + @input 有区别吗？* → 功能上完全等价，但 v-model 帮你在编译阶段自动处理了 IME 输入法组合输入的问题（比如中文输入法拼音中间态不会触发更新），手写 `@input` 如果不用 `@compositionstart` / `@compositionend` 处理，中文输入会有 bug。
+- *多 v-model 编译后长什么样？* → `v-model:title="title"` 编译后等价于 `:title="title" @update:title="title = $event"`，修饰符版本 `v-model:title.trim` 会额外传 `titleModifiers: { trim: true }` 给组件。
+
+**源码在哪**：`packages/compiler-sfc/src/compile.ts`（SFC 编译入口）、`packages/compiler-dom/src/transforms/vModel.ts`（DOM 平台的 v-model 转换逻辑）
+
+**踩过的坑**：封装一个自定义 Input 组件，内部用 `:value` + `@input` 手动实现了 v-model，结果中文输入法打字时，拼音中间状态就触发了更新，输入框里出现了一堆字母。查了文档才发现 v-model 内置了 compositionstart/end 的处理，手写必须自己加 `@compositionstart` 和 `@compositionend` 事件来跳过 IME 中间态。
+
+**项目选型**：v-model 是 Vue 的双向绑定语法糖，React 没有等价物（React 是单向数据流，双向绑定要手写 value + onChange）。选择用 v-model 而不是手动绑定就是为了省代码和避免 IME 问题。
+
 
 ## Vue 2 响应式原理完整实现
 
@@ -668,6 +758,21 @@ const vm = new Vue({
 | 数组 length 修改不响应 | 同上 | 用 `splice` 替代 | Proxy 拦截 `set`（含 length） |
 | 初始化递归遍历开销 | 遍历所有嵌套属性 | 冻结大数据 `Object.freeze` | Proxy 惰性代理，按需递归 |
 
+### 💬 面试深度
+
+**标准回答**：Vue 2 响应式的核心是三个类——Observer 用 Object.defineProperty 劫持每个属性，Dep 做依赖收集，Watcher 做观察者。整个流程是：模板编译时创建 Watcher → Watcher 读数据触发 getter → Dep 收集这个 Watcher → 数据变化触发 setter → Dep 通知所有 Watcher → Watcher 更新视图。这套方案的根本缺陷就是 defineProperty 只能劫持已有属性，新增/删除属性感知不到，数组索引和 length 也不行，所以有了 Vue.set 和 Vue.delete 这些补丁 API。
+
+**追问预判**：
+- *Vue 2 怎么处理数组的？* → Vue 2 重写了数组原型的 7 个变异方法（push/pop/shift/unshift/splice/sort/reverse），在调用这些方法时手动触发通知。但直接通过索引赋值 `arr[0] = x` 或修改 `arr.length = 0` 依然监听不到，必须用 `Vue.set` 或 `splice`。
+- *Dep.target 为什么是全局变量？* → 因为 JavaScript 是单线程的，同一时刻只有一个 Watcher 在执行，用全局变量 `Dep.target` 标记"当前正在求值的 Watcher"是最简单的方案。嵌套 Watcher 的情况（比如 computed 里引用了另一个 computed）用 `targetStack` 栈结构来保证进出顺序正确。
+
+**源码在哪**：Vue 2 源码 `src/core/observer/index.js`（Observer）、`src/core/observer/dep.js`（Dep）、`src/core/observer/watcher.js`（Watcher）
+
+**踩过的坑**：一个动态表单场景，后端返回 JSON 字段列表然后渲染成输入框，我用 `this.formData[field.key] = ''` 动态加了属性，结果输入框输入不更新。问题就是 defineProperty 劫持不到新属性。临时加了 `this.$set(this.formData, field.key, '')` 修复。这个坑也是后来推动团队升级 Vue 3 的重要原因之一。
+
+**项目选型**：Vue 2 的响应式方案在 2016 年的时候是唯一的可行方案（Proxy 不可 polyfill），但放到今天来看，所有新增属性的场景都需要手动 `$set`，维护成本太高，这就是升级 Vue 3 / Proxy 响应式的最大驱动力。
+
+
 ## Vue 3 Proxy 响应式对比
 
 Vue 3 基于 `Proxy` 和 `Reflect` 重构响应式系统，核心由三个函数驱动：**`reactive`** 通过 Proxy 代理整个对象，**`ref`** 对基本类型包装一个 `.value` 访问器并在内部可能依赖 reactive，**`effect`** 创建副作用函数并自动追踪其内部访问的响应式数据。`track`（依赖收集）在 getter 中调用，将当前活跃的 effect 存入一个 WeakMap 结构（`targetMap: WeakMap<target, Map<key, Set<effect>>>`）；`trigger`（触发更新）在 setter / deleteProperty 中调用，从 targetMap 中找到对应 key 的所有 effect 并重新执行。与 Vue 2 的本质区别：不再逐个属性劫持，而是代理整个对象；不再需要 Dep 类和全局 target 栈，改用 WeakMap + 嵌套 effectStack 管理依赖关系。
@@ -877,6 +982,21 @@ state.user.name = 'Bob'
 | 依赖存储 | Dep 实例（闭包内） | WeakMap → Map → Set |
 | 依赖收集触发 | `Dep.target` 全局变量 | `activeEffect` + `effectStack` |
 | 拦截操作数 | 2 种（get / set） | 13 种（含 has、ownKeys、deleteProperty 等） |
+### 💬 面试深度
+
+**标准回答**：Vue 3 的 Proxy 响应式跟 Vue 2 最大的不同是——不再逐个属性劫持，而是代理整个对象。reactive 用 Proxy 包一层，get 时通过 track 函数收集依赖，set/deleteProperty 时通过 trigger 触发更新。依赖存储结构是三层 WeakMap：target → key → Set<effect>。ref 本质是对基本类型包了一个带 `.value` getter/setter 的对象，内部 value 如果是对象会调用 reactive 转响应式。惰性递归也是关键优化：只在 get 访问到嵌套对象时才递归调用 reactive，不像 Vue 2 初始化就全量遍历。
+
+**追问预判**：
+- *Vue 3 的 track/trigger 为什么用 WeakMap 而不是 Map？* → WeakMap 的 key 是弱引用，当被代理的对象不再被外部引用时，它可以被垃圾回收，不会造成内存泄漏。如果用 Map，只要 targetMap 还活着，所有被代理过的对象都回收不掉。
+- *effect 的 cleanup 机制是干什么的？* → 每次 effect 重新执行前，先从所有之前收集它的 dep Set 里把自己删掉，然后清空自己的 deps 列表。这样做的目的是处理动态依赖——比如 effect 里有一个 if 分支，第一次执行走了 if 分支收集了 A 的依赖，第二次走了 else 分支不需要 A 了，如果不 cleanup，A 变了还会触发这个 effect 不必要地重新执行。
+
+**源码在哪**：`packages/reactivity/src/reactive.ts`、`packages/reactivity/src/ref.ts`、`packages/reactivity/src/effect.ts`、`packages/reactivity/src/dep.ts`
+
+**踩过的坑**：用 `reactive` 包了一个从 API 返回的大对象，然后用 `const extracted = state.data.items` 取出来传给了子组件，结果子组件里改了 extracted 的值，父组件没反应。原因是 `extracted` 取出来的是一个 Proxy 子对象没错，但如果子组件里对这个引用做了整体替换（`extracted = newItems`），那就断开了与原始 Proxy 的连接。正确做法是始终通过 `state.data.items = newItems` 的方式修改，或者在子组件里用 `defineModel` / `v-model` 做双向绑定。
+
+**项目选型**：Vue 3 Proxy vs Vue 2 defineProperty 没有选型余地——升级 Vue 3 本身就意味着切换到 Proxy 响应式系统。这个升级带来的收益（自动检测属性增删、数组操作、惰性递归、更少内存）远大于兼容性损失（放弃 IE11），99% 的项目都应该升级。
+
+
 | 兼容性 | IE9+ | 不可 polyfill，需 ES6+ |
 | 内存占用 | 每个属性一个 Dep | 共享 Proxy，无多余对象 |
 ```

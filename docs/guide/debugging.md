@@ -266,6 +266,21 @@ document.addEventListener('keydown', function onKeyDown(e) {
 });
 ```
 
+### 💬 面试深度
+
+**标准回答**：Chrome DevTools 是我每天必用的调试工具。Sources 面板我主要用来打断点和条件断点，配合 Call Stack 和 Scope 快速定位变量值和调用链；Network 面板我会用瀑布图分析首屏加载瓶颈，重点关注 TTFB 和资源下载耗时；Application 面板用来排查 Cookie、LocalStorage 和 IndexedDB 的存储问题；Elements 面板的 Computed 子面板是我排查样式冲突的杀手锏——能直接追溯到最终生效的 CSS 规则来源。
+
+**追问预判**：
+
+- **"Performance 面板怎么做性能分析？"**：用 Performance 录制页面加载或一段交互操作，看火焰图中标记为红色的长任务（Long Tasks > 50ms），定位主线程阻塞点；切换到 Bottom-Up / Call Tree 视图看具体耗时函数分布。如果 FPS 掉帧严重，优先优化强制同步布局（Forced Reflow）。
+- **"怎么用 DevTools 排查内存泄漏？"**：Memory 面板拍两个 Heap Snapshot——操作前一个、操作后一个——用 Comparison 视图对比两次快照之间的新增对象，重点关注 Detached DOM 节点和意外的大型闭包。如果是 SPA 长时间使用场景，用 Allocation instrumentation on timeline 看分配时间线。
+
+**源码在哪**：DevTools 基于 Chromium 的 `third_party/devtools-frontend/src/`，调试协议规范在 Chrome DevTools Protocol (CDP)，`chrome-remote-interface` 这个 npm 包封装了 CDP 的 Node.js 客户端。
+
+**踩过的坑**：在 Sources 面板的 Pretty Print（格式化压缩代码）视图上打断点，结果刷新页面后断点全错位——因为格式化后的行号是虚拟的，和原始压缩文件不对应。正确做法是：确认 Source Map 已正确加载，直接在源码 Tab（带 `webpack://` 前缀）对应的原始文件上打断点；如果没有 Source Map，就用 `debugger;` 语句硬编码断点位置。
+
+**项目选型**：选 DevTools 而非 Safari Web Inspector 或 Firefox DevTools——不是其他不好，而是 Chrome 市占率最高、生态最强（React/Vue DevTools 都基于它扩展），Performance & Memory 面板功能最完整，且 CDP 协议文档完善，方便做自动化（Puppeteer/Playwright 底层都是 CDP）。
+
 ---
 
 ## Source Map
@@ -367,6 +382,21 @@ module.exports = {
 
 **策略三：内网白名单访问**。将 .map 文件放在内部服务器，仅允许内网 IP 或通过 VPN 访问，生产环境错误堆栈转发到内网解析后再展示。
 
+### 💬 面试深度
+
+**标准回答**：Source Map 是压缩/编译后代码和原始源码之间的 JSON 映射文件，mappings 字段用 VLQ 编码存储行列对应关系。浏览器只在 DevTools 打开时才请求 .map 文件，普通用户不受影响。生产环境我坚决不把带 sourcesContent 的 .map 部署到公网——会直接暴露源码。我的标准做法是构建时用 `hidden-source-map` 生成 .map，通过 Sentry Webpack 插件上传后自动删除本地文件，同时在 Nginx 配置 `location ~ \.map$ { deny all; }` 兜底拦截。
+
+**追问预判**：
+
+- **"线上怎么安全使用 Source Map？"**：三种策略按安全性递增：① `hidden-source-map` + 上传 Sentry，构建完用 `cleanArtifacts: true` 删本地 .map，生产服务器上根本不存在 .map 文件；② 如果必须保留在服务器用于内网排查，Nginx 加 `deny all` 或 IP 白名单，外部无法访问；③ `nosources-source-map` 连 sourcesContent 都不生成，.map 只含行列号不含源码内容，即使泄露危害也有限。**绝对不要**把默认的 `source-map` 直接部署——Sources 面板里源码一览无余。
+- **"eval 和 source-map 模式的区别？"**：eval 模式每个模块用 `eval()` 包裹并在末尾加 `//# sourceURL`，构建最快但只映射到文件级别，行号不准；source-map 生成独立的 .map 文件，行列都精确映射但构建最慢。开发环境常用 `eval-cheap-module-source-map` 折中——快且够用，生产用 `hidden-source-map`。
+
+**源码在哪**：Source Map 规范 V3 由 Mozilla 维护在 `mozilla/source-map` 仓库，核心 npm 包 `source-map`。webpack 内由 `webpack-sources` 和 `terser-webpack-plugin` 生成 map，Vite/Rollup 侧由 `magic-string` + `rollup-plugin-sourcemaps` 处理。Sentry 的 Source Map 上传在 `@sentry/webpack-plugin` 和 `@sentry/vite-plugin`。
+
+**踩过的坑**：刚接手项目时，线上 Source Map 直接部署到了 CDN——任何人打开 DevTools 就能在 Sources 面板看到完整的 Vue SFC 源码，包括业务逻辑、API 端点拼接方式、内部工具函数。在 Sentry 里发现这个问题的同事截了图发群里，及时修了：改 `devtool: 'hidden-source-map'`，Nginx 加 deny 规则，已有 .map 文件从 CDN 上批量清除。
+
+**项目选型**：开发环境用 `eval-cheap-module-source-map`（webpack）或默认（Vite 开发模式自动启用），因为行级映射够用且 HMR 快；生产用 `hidden-source-map` + Sentry 上传，没有选 `inline-source-map` 因为它会让产物体积膨胀约 33%（Base64 编码开销）。
+
 ---
 
 ## Vue DevTools
@@ -438,6 +468,21 @@ export const useCounterStore = defineStore('counter', {
 ### Timeline 性能追踪
 
 Timeline 面板通过录制页面交互，展示组件渲染、事件触发、状态变更的时间线。它可以识别性能瓶颈——例如某个操作触发了不必要的重渲染（可以对比渲染前后的组件快照），以及长任务阻塞主线程的警告。
+
+### 💬 面试深度
+
+**标准回答**：Vue DevTools 在 Vue 项目中是我定位组件问题的首选。Components 面板可以看完整的组件树层级、props/data/computed 的实时值，还能双击编辑即时预览响应式变化；Timeline 面板录制组件事件和渲染时间线，排查"事件有没有触发"、"emit payload 对不对"非常高效；Pinia 面板支持时间旅行调试，每次 action 调用的前后 state 都能回看。Routing 面板是我排查导航守卫卡住和路由参数不匹配问题的利器。
+
+**追问预判**：
+
+- **"Vue DevTools 和 React DevTools 在使用体验上有什么差异？"**：Vue DevTools 对新手更友好——组件树直接展示 props/data/computed，编辑后页面实时响应，而且 Pinia + Vue Router 深度集成，一个扩展搞定状态和路由调试。React DevTools 的 Profiler 火焰图更强，渲染分析颗粒度更细（"Why did this render?"），但状态管理需要另装 Redux DevTools。整体上 Vue DevTools 开箱即用度更高。
+- **"生产环境怎么启用 Vue DevTools？"**：Vue 2 在入口文件手动 `Vue.config.devtools = true`，Vue 3 设置 `app.config.devtools = true` 并通过构建时定义 `__VUE_PROD_DEVTOOLS__` 编译标志保留 devtools 支持。但通常不建议生产开启——有性能开销和潜在的信息暴露风险。
+
+**源码在哪**：官方仓库 `vuejs/devtools`，核心 bridge 在 `packages/app-backend-core`。Vue 3 运行时通过 `@vue/devtools-api` 包暴露钩子，组件树遍历和状态读取在 `packages/app-backend-vue3`。
+
+**踩过的坑**：在一个 200+ 组件的大型后台项目中，开着 Vue DevTools 的 Timeline 录制功能排查路由切换问题，录了大概两分钟后页面直接卡死——浏览器 Tab 内存飙到 4GB+。原因是每次响应式更新 DevTools 都拍了组件快照存储到内存中。正确做法：按需录制、排查完立即停止、避免长时间 recording。
+
+**项目选型**：Vue 项目当然用 Vue DevTools，因为它和 Vue 响应式系统 + Pinia + Vue Router 的集成深度是任何通用调试工具无法替代的。React 生态则需要 DevTools + Redux DevTools 组合使用。
 
 ---
 
@@ -522,6 +567,21 @@ function Parent() {
 | Commit duration | React 将变更写入 DOM 的耗时 | 减少 DOM 节点变更数 |
 | Total render count | 录制期间总渲染次数 | 减少不必要重渲染 |
 | Self duration | 组件自身渲染耗时（不含子组件） | 优化组件内部逻辑 |
+
+### 💬 面试深度
+
+**标准回答**：React DevTools 两大核心面板我每天用——Components 看组件树和 hooks 状态，能直接编辑 props/state 实时调试；Profiler 录火焰图分析渲染性能。最实用的功能是"Highlight updates when components render"——勾选后每次渲染都会有彩色边框闪烁，一眼看出哪些组件在重复渲染，灰色表示被 memo 跳过了。火焰图中色块越宽渲染越耗时，Ranked 视图按总耗时排序直接定位瓶颈组件，再点进 "What caused this render?" 就知道是哪个 props 或 hook 变了。
+
+**追问预判**：
+
+- **"React.memo 没生效怎么用 DevTools 排查？"**：在 Components 面板选中目标组件，看 props 面板中的值——如果引用类型的 prop（对象/数组/函数）每次渲染都是新的引用，memo 的浅比较自然拦不住。然后到 Profiler 火焰图确认该组件确实每次都在渲染（非灰色），最后在父组件中用 `useMemo` / `useCallback` 稳定引用。
+- **"Profiler 录出来的数据准不准？"**：Profiler 录制时 React 会注入额外的性能测量钩子，本身有开销（通常在 5-15%），所以录出来的绝对值仅供参考——真实渲染耗时通常比 Profiler 显示的快。关注相对差异（优化前后对比）和渲染次数（是否不必要重渲染），而不是绝对毫秒数。
+
+**源码在哪**：React 仓库 `facebook/react` 下 `packages/react-devtools*` 系列，核心在 `packages/react-devtools-shared`（共享逻辑）和 `packages/react-devtools-extensions`（浏览器扩展）。React 运行时通过 `__REACT_DEVTOOLS_GLOBAL_HOOK__` 全局对象注入调试信息。
+
+**踩过的坑**：线上用户反馈页面交互卡顿，本地开 Profiler 录火焰图没发现明显问题——后来意识到 Profiler 本身有 10%+ 的性能开销，在生产环境关闭 DevTools 后卡顿显著减轻。教训：Profiler 数据要在相近条件下对比（同开或同关），不要拿开了 Profiler 的本地数据和纯净的生产环境直接比较。
+
+**项目选型**：React 项目标配 React DevTools，它在渲染分析上比 Vue DevTools 更强（火焰图 + "Why did this render?" 机制），但状态管理需要搭配 Redux DevTools 或 Zustand 的内置 DevTools。没有选 Reactotron 等第三方工具，因为官方 DevTools 更新最及时、和 React 版本兼容性最好。
 
 ---
 
@@ -743,6 +803,21 @@ try {
 }
 ```
 
+### 💬 面试深度
+
+**标准回答**：线上错误监控我覆盖三个维度——`window.addEventListener('error', cb, true)` 捕获 JS 运行时和资源加载错误，`unhandledrejection` 事件捕获未处理的 Promise 错误，框架层用 ErrorBoundary（React）或 errorHandler（Vue）兜底组件级异常。所有错误汇聚到 Sentry，自动关联 Source Map 还原压缩堆栈，配合 Breadcrumbs 追踪用户操作路径。关键经验：跨域脚本要设 `crossorigin="anonymous"` 且 CDN 返回 CORS 头，否则 `window.onerror` 只能拿到无意义的 `Script error.`。
+
+**追问预判**：
+
+- **"window.onerror 拿不到什么？"**：拿不到跨域脚本的详细堆栈信息——如果 JS 文件部署在不同于页面的域（如 CDN），且 script 标签没设 `crossorigin="anonymous"`、CDN 没返回 `Access-Control-Allow-Origin`，浏览器会出于安全策略隐藏错误详情，onerror 只能收到 `"Script error."` 这个字符串，lineno/colno/stack 全部为空。**解决方案**：① script 标签加 `crossorigin="anonymous"`；② CDN 响应头加 `Access-Control-Allow-Origin`（不能是 `*` 搭配 credentials，匿名模式用 `*` 即可）；③ 同时监听 `unhandledrejection` 因为 Promise 错误也走不到 onerror。
+- **"错误上报怎么做节流和去重？"**：对 error.message + error.stack 前 3 行做 SHA256 hash 作为 fingerprint，相同 fingerprint 在时间窗口内（如 5 分钟）只上报一次，后续用 count 累计。页面关闭时用 `navigator.sendBeacon()` 兜底发送队列中未上报的错误，比 `fetch` 更可靠（不会因页面卸载而被浏览器取消）。
+
+**源码在哪**：Sentry JS SDK 在 `getsentry/sentry-javascript` 仓库，核心错误捕获逻辑在 `packages/core/src/integrations/globalhandlers.ts`，Source Map 上传插件在 `packages/webpack-plugin`。Sentry 后端是 Python (Django)，开源在 `getsentry/sentry`。
+
+**踩过的坑**：线上监控上线后收了一堆 `Script error.` 报错，完全无法定位——因为 CDN 的 JS 跨域了且没配 CORS。加上 `crossorigin="anonymous"` 和 CDN CORS 响应头后错误堆栈恢复正常。另一个坑：只监听了 `window.onerror`，完全没处理 Promise 错误，导致 async/await 中的异常静默丢失——用户在页面操作失败但监控平台一片宁静。补上 `unhandledrejection` 监听后一天内发现了十几个之前被忽略的真实 Bug。
+
+**项目选型**：选 Sentry 而非自建或国内方案（如 Fundebug/FunDebug），核心原因：Source Map 自动管理、Issue Grouping 算法成熟（同类错误智能合并）、Session Replay 回放用户操作、跨平台覆盖全（Web + Node + React Native + 小程序），开源自部署也满足数据安全需求。错误日志量不大的小团队用 Sentry 免费额度完全够。
+
 ---
 
 ## 移动端调试
@@ -863,6 +938,21 @@ example.com/app.js file:///Users/me/project/dist/app.js
 ```
 
 Whistle 的优势在于规则化配置，可以保存为文件版本管理，团队成员共享同一套代理规则。配合 Weinre（Web Inspector Remote）还可以实现类似 Safari/Chrome 远程调试的功能，但更通用（跨平台、跨浏览器）。
+
+### 💬 面试深度
+
+**标准回答**：移动端调试我按场景选工具。快速看 log 用 vConsole 一行 CDN 注入，适合 QA 在真机上复现问题时截图日志；iOS Safari 用 Mac Safari 的 Web Inspector USB 远程调试，体验几乎等同于桌面 DevTools；Android Chrome 用 `chrome://inspect` 连 USB，WebView 需要原生侧开 `setWebContentsDebuggingEnabled(true)`。接口抓包和 Mock 我用 Whistle——比 Charles 灵活太多了，规则文件可以 Git 管理和团队共享，支持正则匹配、文件替换、延迟模拟。
+
+**追问预判**：
+
+- **"vConsole 的局限是什么？"**：① 悬浮按钮会覆盖页面底部区域，可能影响手势交互或遮挡关键按钮；② 大量日志输出时（如长轮询接口每秒 10 条 log），页面明显卡顿；③ 只有日志查看能力，无法打断点、看调用栈或做性能分析——复杂问题还是需要远程真机调试。通常做法是用 URL 参数 `?debug=1` 动态开关，非调试时完全不走 vConsole。
+- **"Whistle 怎么调试 HTTPS 请求？"**：三个步骤：① 手机设置 Wi-Fi 代理为电脑 IP + 端口 8899；② 手机浏览器访问 `http://电脑IP:8899` 下载并安装 Whistle 根证书；③ iOS 还要在"设置 > 通用 > 关于本机 > 证书信任设置"中手动启用对 Whistle 证书的信任。之后 Whistle 就能解密并展示 HTTPS 请求的完整内容。
+
+**源码在哪**：vConsole 是腾讯开源项目 `Tencent/vConsole`，Whistle 在 `avwo/whistle` 仓库，Chrome 远程调试基于 CDP 协议（`chrome://inspect` 底层 WebSocket 通信）。
+
+**踩过的坑**：测试环境用 vConsole 排查问题，vConsole 的悬浮按钮刚好盖住了页面底部固定定位的"提交订单"按钮，QA 以为功能坏了报了 Bug 给我。修复：在页面底部预留 `env(safe-area-inset-bottom)` 的基础上额外加 50px padding-bottom，给 vConsole 按钮留空间；同时通过 URL 参数 `?vconsole=1` 动态加载，非调试时完全不注入 vConsole 脚本。
+
+**项目选型**：Whistle 选它没选 Charles 因为：① Node.js 生态、规则文件纯文本可 Git 管理共享给团队；② 支持插件扩展和自定义规则引擎；③ 开源免费不限制设备数；④ 命令行 + Web 双界面更灵活。Charles 的 GUI 操作不适合自动化，规则不能版本控制，且收费。
 
 ---
 
@@ -1045,3 +1135,19 @@ p { color: red; }
 | flex/grid 子元素不按预期排列 | 父元素未设置 `display: flex/grid` | Elements 面板查看 computed display 值 |
 | `overflow: hidden` 无效 | 子元素 position absolute 脱离流 | 给父容器加 `position: relative` |
 | 伪元素内容不显示 | 缺少 `content` 属性 / display 问题 | 检查 `content: ''` 是否设置 |
+
+
+### 💬 面试深度
+
+**标准回答**：白屏是我面试必问的排障题，标准流程五步走：先开 Console 看有没有 JS 报错→看 Network 资源是否 200→看 Elements 里 #app 有没有渲染 DOM→检查路由是否匹配当前 URL→最后看浏览器兼容性（polyfill 是否遗漏）。接口报错我按状态码快速定位——4xx 是前端问题（参数/权限/路径），5xx 是服务端问题直接看后端日志。样式问题我第一反应是打开 Computed 面板溯源，看最终生效值和来源规则，比盲目改 CSS 高效得多。
+
+**追问预判**：
+
+- **"白屏是 JS 报错导致但控制台没输出怎么办？"**：可能报错被 try-catch 吞了，或者发生在 DevTools 打开之前的初始化阶段。在入口文件最顶部加 `window.onerror` 监听，把错误直接渲染到页面上（如显示一个红色错误浮层）；还可以通过 `performance.getEntriesByType('navigation')` 看是否有异常跳转。线上用户白屏但本地复现不了——查 Sentry 是否有对应时间的报错、检查 CDN 地域节点是否正常、确认灰度和 AB 实验版本。
+- **"用户说白屏但自己复现不了怎么办？"**：① 查用户浏览器 UA，看是不是不常见版本（如旧版 Safari、UC 浏览器）；② 查 Sentry/监控平台对应时间点的异常；③ 检查 CDN 节点——可能是某个区域 CDN 挂了导致 JS/CSS 没加载；④ 确认灰度/AB 测试是否命中了有问题的版本；⑤ 如果用户愿意配合，用 rrweb 录一段回放。
+
+**源码在哪**：无特定框架，相关工具包括 `axe-core`（无障碍自动检测）、GoogleChrome/lighthouse（性能/SEO/可访问性审计）、`rrweb`（rrweb-io/rrweb，页面录制与回放）。
+
+**踩过的坑**：某个管理后台页面在 Chrome 正常、Safari 完全白屏——排查发现代码中用了 `String.prototype.replaceAll`，Safari 13 不支持。项目 `.browserslistrc` 配的 `> 1%` 没注意到 Safari 13 的全球份额刚好过线，但国内大量 iPhone 用户还在用。修复：① 显式加 `iOS >= 13` 到 browserslist，让 Babel 自动 polyfill；② 团队规范——用 `replace` 配合正则替代 `replaceAll`，或统一用 lodash 的工具函数。从此养成习惯：每用一个新 API 先在 MDN 查浏览器兼容性表。
+
+**项目选型**：排查方法论没有"选型"问题，但工具链上：自建白屏检测用 DOMContentLoaded 后检查 #app 子节点数和 `offsetHeight`（轻量无依赖），错误监控选 Sentry（前面说过），性能用 Lighthouse CI 做 PR 门禁防止性能回退。没有用 PageSpeed Insights 的在线版因为 Lighthouse CI 可以本地跑、结果稳定、不依赖第三方服务可用性。

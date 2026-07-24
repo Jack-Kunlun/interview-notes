@@ -181,6 +181,18 @@ const emit = defineEmits(['update:value'])
 推荐度        ★★★★★（更简单）          ★★★（历史遗留方案）
 ```
 
+### 💬 面试深度
+
+**标准回答**：Flex 是一维弹性布局模型，核心是三件套：`flex-grow`（放大比例）、`flex-shrink`（收缩比例）、`flex-basis`（初始尺寸）。`flex: 1` 等价于 `flex: 1 1 0%`，意思是"忽略内容尺寸、均分剩余空间"。实际开发中，`align-content` 只在 `flex-wrap: wrap` 多行场景生效，单行时设置它是无效的——这是面试高频踩坑点。Flex 适合一维流式排列，比如导航栏、操作按钮组、卡片列表；一旦需要同时控制行和列（比如页面骨架），就应该切换到 Grid。
+
+**追问预判**：
+- Q: "`flex: 1` 和 `flex: auto` 有什么区别？" → `flex: 1` = `1 1 0%`（从 0 开始均分），`flex: auto` = `1 1 auto`（先保留内容尺寸再均分剩余空间）。所以当子元素内容宽度不一致时，`flex: 1` 会让三个元素等宽，`flex: auto` 下内容多的会更宽。
+- Q: "为什么我的 `align-content: center` 没生效？" → 99% 是因为没有 `flex-wrap: wrap`，单行容器请用 `align-items`。
+
+**踩过的坑**：在做一个后台管理系统的左侧菜单时，用 `flex: 1` 让内容区自适应，但没给 flex 容器设 `min-height: 0`，导致内容溢出时 flex 子项不触发滚动条，而是撑开整个页面。原因是 Flex 子项的默认 `min-height: auto` 会阻止缩小到内容高度以下。修复：给 flex 子项加上 `min-height: 0` 或 `overflow: auto`。
+
+**项目选型**：一维流式内容（导航栏、标签栏、卡片列表）选 Flex，二维布局（页面骨架、仪表盘、表单网格）选 Grid——两者嵌套使用是最佳实践：外层 Grid 定骨架，内层 Flex 排细节。
+
 ## Grid 布局深入 ⭐⭐
 
 ### grid-template-areas 命名布局
@@ -260,6 +272,18 @@ const emit = defineEmits(['update:value'])
 二维对齐用 Grid（页面骨架、表单布局、卡片网格）
 两者可嵌套使用——外层 Grid 定骨架，内层 Flex 排细节
 ```
+
+### 💬 面试深度
+
+**标准回答**：Grid 是二维布局系统，核心价值在于同时控制行和列，而不是像 Flex 那样只沿一个方向排列。`grid-template-areas` 用 ASCII 可视化语法直接把设计稿映射到代码，响应式时只需改 areas 字符串，可维护性极高。`auto-fill` 和 `auto-fit` 配合 `minmax()` 实现自适应列数：fill 保留空轨道留白，fit 折叠空轨道让项目撑满。选型上，只要布局涉及行+列的双向控制——比如页面骨架、仪表盘、表单网格——就应该优先考虑 Grid。
+
+**追问预判**：
+- Q: "Grid 和 Flex 到底什么时候用哪个？" → 决策链：先看布局是几维的。一维（要么行要么列）→ Flex；二维（行+列同时控制）→ Grid。更具体地说：固定骨架结构（header/sidebar/content/footer）→ Grid；流式内容排列（导航栏、标签列表）→ Flex。两者不互斥，外层 Grid 定页面骨架，内层 Flex 排工具栏或卡片内容，这才是实战中最常见的组合。
+- Q: "`auto-fill` 在 Safari 上有什么坑？" → Safari 对 `minmax()` 中的 `min` 值处理不同——当使用 `repeat(auto-fill, minmax(200px, 1fr))` 时，Safari 的隐式最小宽度默认不是 200px，而是内容的最小宽度（类似 `min-width: auto`），可能导致网格项在窄屏时不收缩到预期大小。解决方案：给网格项显式设置 `min-width: 0` 或使用 `minmax(min(200px, 100%), 1fr)` 写法。
+
+**踩过的坑**：在一个项目中用 `repeat(auto-fill, minmax(280px, 1fr))` 做响应式卡片网格，Chrome 和 Firefox 都正常，但在 Safari 上卡片被撑开、不换行。排查后发现 Safari 的 `min-width` 默认值是 `auto`（内容宽度），而 Chrome 会正确使用 `minmax` 中指定的 min 值。**后果**：Safari 用户看到的是横向滚动条而不是自适应卡片网格。**修复**：给每个 grid item 加 `min-width: 0`，或者把 `minmax(280px, 1fr)` 改成 `minmax(min(280px, 100%), 1fr)` 让 Safari 正确识别最小宽度约束。
+
+**项目选型**：二维布局（行+列同时控制）、固定骨架 → Grid；一维流式内容 → Flex。实战中两者嵌套——外层 Grid 定页面骨架，内层 Flex 排细节元素。
 
 ## CSS 动画与阴影 ⭐⭐
 
@@ -375,6 +399,20 @@ const emit = defineEmits(['update:value'])
 }
 ```
 
+### 💬 面试深度
+
+**标准回答**：CSS 动画分为两种：transition 是被动过渡（需要 hover 或 class 切换触发），animation 是主动动画（通过 @keyframes 定义关键帧，可自动播放、循环、暂停）。性能优化的核心原则是只动画 `transform` 和 `opacity`——这两个属性触发的是合成层上的 GPU 矩阵变换，浏览器跳过 Layout 和 Paint 阶段，直接在合成线程完成，因此 60fps 丝滑流畅。而改变 `width`、`left`、`margin` 等属性会触发重排（Layout → Paint → Composite 全走一遍），导致卡顿。`drop-shadow` 跟像素轮廓、`box-shadow` 跟盒模型边界，这个区别在处理三角形箭头和 PNG 图标时尤为关键。
+
+**追问预判**：
+- Q: "为什么 transform 和 opacity 动画不会触发重排？" → 因为浏览器渲染管线分三个阶段：Layout（布局）→ Paint（绘制）→ Composite（合成）。transform 和 opacity 只影响 Composite 阶段——GPU 拿到已绘制好的图层纹理，直接做矩阵变换（平移、旋转、缩放）和透明度混合，不需要重新计算布局和重新绘制像素。这就是"合成层动画"的底层原理，也是为什么我们做动画应该尽量只用这两个属性。
+- Q: "will-change 什么时候用？有副作用吗？" → `will-change: transform` 提前告知浏览器该元素即将变化，浏览器会提前创建独立的合成层（GPU 层）。但它会占用 GPU 显存，如果滥用（比如给几百个元素都加），显存暴涨会导致性能反而下降。正确做法：只在即将动画前通过 JS 动态添加，动画结束后移除。
+
+**源码在哪**：浏览器渲染引擎层面——Chromium 的 `cc::LayerTreeHost` 负责合成层管理，`cc::TransformNode` 处理矩阵变换。CSS 规范在 W3C CSS Transforms Module Level 1 和 CSS Compositing and Blending Level 1。
+
+**踩过的坑**：在做一个列表展开动画时，用 `transition: height 0.3s` 从 `height: 0` 过渡到 `height: auto`——完全不生效。**原因**：CSS transition 需要可计算的数值起点和终点，`auto` 不是数值，浏览器无法插值。**后果**：动画直接闪现，没有任何过渡效果。**修复**：改用 `max-height` 过渡（设一个足够大的值如 `max-height: 1000px`），或者用 JS `getBoundingClientRect()` 先量出实际高度再设具体数值；更现代的做法是用 FLIP 技术或 `grid-template-rows: 0fr` → `1fr` 的 Grid 技巧。
+
+**项目选型**：hover 效果用 transition（简单轻量），加载动画/骨架屏用 animation（需要循环和关键帧控制），追求极致流畅统一只动画 transform + opacity。
+
 ## Tailwind CSS vs UnoCSS ⭐⭐
 
 ### 核心对比
@@ -447,6 +485,18 @@ export default defineConfig({
 • 需要现成组件库生态 → Tailwind（Headless UI、Radix、Flowbite）
 • 两者可共存 — UnoCSS 提供了 Tailwind 兼容预设
 ```
+
+### 💬 面试深度
+
+**标准回答**：Tailwind CSS 和 UnoCSS 都是原子化 CSS 方案，核心差异在实现层：Tailwind 基于 PostCSS AST 解析源码生成 CSS，UnoCSS 用正则匹配按需注入规则，没有 AST 解析阶段所以构建快 5-10 倍。Tailwind 胜在生态——Headless UI、Radix、Flowbite 等组件库开箱即用，团队协作时类名语义统一。UnoCSS 胜在灵活——规则完全可编程（用正则定义 `m-{float}`），天然支持动态值而 Tailwind 需要 `safelist` 或完整类名才行。UnoCSS 还内置 Icon Preset（按需加载图标）、Attributify Mode（属性化写法）等 Tailwind 需要插件才能实现的能力。
+
+**追问预判**：
+- Q: "Tailwind 的动态类名问题怎么解决？比如 `bg-${color}-500`？" → Tailwind 的 JIT 引擎在编译时扫描完整类名字符串，动态拼接的类名（如模板字符串 `bg-${color}-500`）会被遗漏。解决方案有三：① 写完整类名（如 `color === 'red' ? 'bg-red-500' : 'bg-blue-500'`）；② 用 `safelist` 配置保留特定类名模式；③ 用 `style` 属性直接写内联样式。UnoCSS 天然无此问题，因为它的正则规则在运行时匹配。
+- Q: "UnoCSS 能完全替代 Tailwind 吗？" → 技术上可以——UnoCSS 提供了 `@unocss/preset-wind` 兼容 Tailwind 的全部类名，迁移成本很低。但如果你重度依赖 Headless UI、Tailwind UI 等生态组件，它们内部硬编码了 Tailwind 类名，切换成本较高。建议：新项目直接用 UnoCSS；已有 Tailwind 项目除非遇到构建性能瓶颈（构建 > 30s），否则不需要迁移。
+
+**踩过的坑**：在 Tailwind 项目中用 `text-${props.color}-500` 这种动态拼接类名，开发环境正常（因为 dev server 全量加载），一到生产构建颜色全部丢失。**原因**：Tailwind JIT 在构建时扫描源码中的完整类名字符串，模板字符串 `${}` 部分对静态分析不可见，对应的 CSS 规则不会被生成。**后果**：生产环境按钮颜色全部变成默认色，和设计稿严重不符。**修复**：改为映射对象 `const colorMap = { red: 'text-red-500', blue: 'text-blue-500' }` 然后 `colorMap[props.color]`；或者直接迁移到 UnoCSS 彻底解决动态类名问题。
+
+**项目选型**：团队习惯 Utility-First 且需要成熟生态（Headless UI、Tailwind UI）选 Tailwind；追求极致构建性能、需要灵活动态规则的新项目选 UnoCSS（按需生成无冗余，Vite 集成零配置）。
 
 ## CSS 工程化要点速查 ⭐⭐
 
