@@ -509,7 +509,7 @@ npm install -g whistle
 w2 start
 ```
 
-```conf
+```txt
 # Whistle 规则示例 (Rules)
 # 将线上 JS 映射到本地文件
 https://cdn.example.com/app.js file:///Users/me/local/app.js

@@ -361,7 +361,7 @@ Dockerfile 是构建 Docker 镜像的声明式脚本，每条指令产生一个�
 
 `.dockerignore` 文件用于排除不需要复制到镜像中的文件和目录，减少构建上下文大小（加速 `docker build`）、避免敏感文件泄露（`.env`、`.git`）和防止 `node_modules` 覆盖镜像内安装的依赖。语法与 `.gitignore` 类似，支持通配符和取反规则。
 
-```dockerignore
+```txt
 # 依赖
 node_modules
 .pnpm-store
