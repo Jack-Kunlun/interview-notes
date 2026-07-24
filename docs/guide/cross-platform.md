@@ -105,3 +105,229 @@ React Native 无浏览器 DOM / BOM，无法使用 `document`、`window` 等 API
 ### 小程序双线程架构：渲染层（WebView）与逻辑层（JSCore）通信
 
 小程序采用 **双线程模型**：渲染层运行在 WebView 中负责界面呈现，逻辑层运行在 JSCore 中处理数据和业务逻辑，两者通过 Native 中转 `setData` 完成通信。这一设计隔离了 DOM 操作与 JS 执行，安全性高，但频繁 `setData` 会产生跨线程通信开销，需注意数据传输量和调用频率。
+
+## 移动端自适应 ⭐⭐
+
+移动端自适应是指同一套代码在不同屏幕尺寸和像素密度的设备上保持视觉一致性的方案。核心问题在于屏幕宽度不统一、物理像素与 CSS 像素存在倍率差异（Retina 屏 `devicePixelRatio >= 2`），需要通过相对单位和视口配置来抹平差异。
+
+### 常用 CSS 单位对比
+
+| 单位 | 含义 | 换算 |
+|---|---|---|
+| `px` | 逻辑像素（CSS 像素） | 设计稿基准，受 `devicePixelRatio` 影响 |
+| `rpx` | 微信小程序响应式像素 | `750rpx = 屏幕宽度`，自动等比缩放 |
+| `rem` | 相对根元素 `font-size` | `1rem = html` 的 `font-size`（默认 16px） |
+| `vw / vh` | 视口宽度/高度百分比 | `100vw = 视口宽度`，`100vh = 视口高度` |
+| `em` | 相对父元素 `font-size` | `1em = 父元素` 的 `font-size` |
+| `%` | 相对父容器的百分比 | 参照物随 `position` 而变化 |
+
+### 移动端 1px 边框问题
+
+在高 DPI 屏幕上，`border: 1px` 实际渲染为 2~3 个物理像素，导致边框显得过粗。解决思路是使用伪元素画 1px 边框，再通过 `transform: scale(0.5)` 将其缩放至 0.5 逻辑像素，从而在 Retina 屏上呈现真正的 1 物理像素细线。该方案兼容性好，无需 JS 判断设备像素比。
+
+```css
+/* 1px 下边框 —— 伪元素 + transform 缩放 */
+.hairline {
+  position: relative;
+}
+.hairline::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background-color: #e5e5e5;
+  transform: scaleY(0.5);
+  transform-origin: 0 0;
+}
+
+/* 1px 四周边框（需同时处理四个边）*/
+.hairline-border {
+  position: relative;
+}
+.hairline-border::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  border: 1px solid #e5e5e5;
+  transform: scale(0.5);
+  transform-origin: center;
+  border-radius: 0; /* 如需圆角，按 2x 设置，缩放后自动减半 */
+}
+```
+
+### viewport meta 标签
+
+`viewport` meta 标签是移动端适配的第一道关卡，它告诉浏览器如何控制页面尺寸和缩放比例。没有该标签时，移动端浏览器会以桌面端宽度（约 980px）渲染页面，用户只能双指缩放查看。合理配置 `viewport` 才能启用响应式布局，让媒体查询和 `vw/vh` 正确生效。
+
+```html
+<!-- 标准移动端 viewport -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+```
+
+| 属性 | 作用 | 推荐值 |
+|---|---|---|
+| `width` | 视口宽度 | `device-width`（设备独立像素宽度） |
+| `initial-scale` | 初始缩放比例 | `1.0` |
+| `maximum-scale` | 最大缩放比例 | `1.0`（禁止缩放） 或 `3.0`（允许缩放） |
+| `minimum-scale` | 最小缩放比例 | `1.0` |
+| `user-scalable` | 是否允许用户缩放 | `no` |
+
+### rem 适配方案（flexible.js 思路）
+
+经典方案是通过 JS 动态设置 `html` 的 `font-size`，使得 `1rem = 屏幕宽度 / 10`（或 / 7.5），CSS 中用 rem 写尺寸即可等比缩放。该方案在淘宝、京东移动端广泛应用，核心就是监听 `resize` 事件，用 `document.documentElement.clientWidth` 除以设计稿基准值重新计算根字号。
+
+```javascript
+// rem 自适应：设计稿 375px 为基准，1rem = 37.5px
+(function () {
+  const setRem = () => {
+    const baseWidth = 375;               // 设计稿宽度
+    const baseFontSize = 37.5;           // 基准 font-size
+    const scale = document.documentElement.clientWidth / baseWidth;
+    document.documentElement.style.fontSize = baseFontSize * scale + 'px';
+  };
+  setRem();
+  window.addEventListener('resize', setRem);
+  // 页面显示时重新计算（解决缓存返回问题）
+  window.addEventListener('pageshow', (e) => {
+    if (e.persisted) setRem();
+  });
+})();
+```
+
+## React Native 热更新 ⭐⭐
+
+热更新（Hot Update / OTA）指在不经过 App Store / Google Play 审核的情况下，直接向用户推送 JS Bundle 增量更新，快速修复 Bug 或上线新功能。React Native 的 JS 代码运行在 JSCore / Hermes 中，天然支持运行时替换，这是热更新的技术基础。
+
+### CodePush 原理
+
+CodePush（现集成于 App Center）是微软提供的热更新服务。核心原理是：App 启动时检查远程是否有新版本的 JS Bundle，若有则下载增量包（diff update），存储到本地，下次启动或立即应用新包。增量下发通过 BSDiff 算法对比新旧 Bundle 的二进制差异，大幅减少下载量（通常仅几十 KB），而非每次都拉取完整 Bundle。
+
+| 特性 | 说明 |
+|---|---|
+| 更新粒度 | JS Bundle（JS 代码 + 图片资源），不含原生代码 |
+| 更新方式 | 增量更新（BSDiff），对比上次已安装版本 |
+| 生效时机 | 立即生效 或 下次启动生效 |
+| 回滚能力 | 自动回滚：新包崩溃时恢复上一个稳定版本 |
+| 原生变更 | 涉及 Native 模块修改时**必须走应用商店更新** |
+
+### AppCenter CLI 配置
+
+App Center 提供 `appcenter-cli` 命令行工具管理热更新。核心命令：`codepush release-react` 发布 JS Bundle 到指定部署环境。通常将 `Staging` 环境用于内部测试，`Production` 用于线上用户。
+
+```bash
+# 安装 CLI
+npm install -g appcenter-cli
+
+# 登录
+appcenter login
+
+# 发布 React Native 热更新
+appcenter codepush release-react \
+  -a <owner>/<app-name> \
+  -d Staging \                # 部署环境：Staging / Production
+  -t ">=1.0.0" \              # 目标二进制版本范围
+  --description "修复首页白屏问题" \
+  --mandatory false           # 是否强制更新
+
+# 查看发布历史
+appcenter codepush deployment history -a <owner>/<app-name> Staging
+
+# 回滚到上一版本
+appcenter codepush rollback -a <owner>/<app-name> Staging
+```
+
+### 强制更新 vs 静默更新
+
+| 对比维度 | 强制更新（Mandatory） | 静默更新（Silent） |
+|---|---|---|
+| 用户体验 | 弹窗阻断，用户必须更新后才能使用 | 后台静默下载，无感知 |
+| 适用场景 | 严重 Bug 修复、安全漏洞、不可兼容的接口变更 | 文案调整、样式优化、新增非核心功能 |
+| 生效时机 | 下载后**立即**应用（配合 `sync` 的 `installMode`） | 下次启动时应用 |
+| 风险 | 阻断式体验，可能导致用户流失 | 延迟生效，Bug 修复不够及时 |
+| CLI 参数 | `--mandatory true` | `--mandatory false`（默认） |
+
+### 热更新完整流程
+
+```tsx
+import codePush from 'react-native-code-push';
+
+// 1. 基础集成：高阶组件包裹 App
+const App = () => {
+  // ...业务代码
+};
+
+const codePushOptions = {
+  checkFrequency: codePush.CheckFrequency.ON_APP_RESUME, // App 回到前台时检查
+  installMode: codePush.InstallMode.ON_NEXT_RESUME,       // 下载后下次 Resume 生效
+  mandatoryInstallMode: codePush.InstallMode.IMMEDIATE,   // 强制更新立即生效
+};
+
+export default codePush(codePushOptions)(App);
+
+// 2. 更精细的控制：手动 sync + 状态回调
+async function checkForUpdate() {
+  const update = await codePush.sync(
+    {
+      installMode: codePush.InstallMode.ON_NEXT_RESTART,
+      mandatoryInstallMode: codePush.InstallMode.IMMEDIATE,
+    },
+    // 状态变化回调
+    (status) => {
+      switch (status) {
+        case codePush.SyncStatus.CHECKING_FOR_UPDATE:
+          console.log('正在检查更新...');
+          break;
+        case codePush.SyncStatus.DOWNLOADING_PACKAGE:
+          console.log('正在下载更新包...');
+          break;
+        case codePush.SyncStatus.INSTALLING_UPDATE:
+          console.log('正在安装更新...');
+          break;
+        case codePush.SyncStatus.UPDATE_INSTALLED:
+          console.log('更新已安装，下次启动生效');
+          break;
+      }
+    },
+    // 下载进度回调
+    ({ receivedBytes, totalBytes }) => {
+      const progress = (receivedBytes / totalBytes * 100).toFixed(0);
+      console.log(`下载进度: ${progress}%`);
+    }
+  );
+  return update;
+}
+
+// 3. 区分环境：开发环境跳过热更新检查
+const isDev = __DEV__;
+
+const codePushOptions = isDev
+  ? { checkFrequency: codePush.CheckFrequency.MANUAL } // 开发环境手动触发
+  : {
+      checkFrequency: codePush.CheckFrequency.ON_APP_RESUME,
+      installMode: codePush.InstallMode.ON_NEXT_RESUME,
+    };
+
+export default codePush(codePushOptions)(App);
+```
+
+### 热更新流程时序
+
+```
+App 启动 → codePush.sync() → 请求 CodePush Server
+    ├── 无新版本 → 直接进入 App
+    └── 有新版本
+        ├── 下载增量 Bundle（diff）
+        ├── 校验签名 & MD5
+        ├── 解压到本地目录
+        └── InstallMode 决定生效时机
+            ├── IMMEDIATE       → 立即 reload（强制更新推荐）
+            ├── ON_NEXT_RESUME  → App 下次回到前台时 reload
+            └── ON_NEXT_RESTART → 完全退出后下次冷启动生效
+```
+
+> **面试要点**：热更新只能更新 JS 层代码和图片资源，原生代码（`android/app/src`、`ios/`）变更必须走商店审核。如果新增了 Native Module 或升级了 RN 版本，热更新推送会导致原生层与 JS 层不匹配而崩溃，此时应通过 `targetBinaryVersion` 限制更新的二进制版本范围。

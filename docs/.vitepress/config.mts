@@ -32,6 +32,15 @@ export default defineConfig({
           { text: '权限控制 & 架构', link: '/guide/permission' },
           { text: 'Node.js & 数据库', link: '/guide/nodejs' },
           { text: '数据可视化', link: '/guide/visualization' },
+          { text: '性能优化', link: '/guide/performance' },
+          { text: '前端算法', link: '/guide/algorithms' },
+          { text: '错误排查', link: '/guide/debugging' },
+          { text: '网络通信', link: '/guide/networking' },
+          { text: 'DevOps', link: '/guide/devops' },
+          { text: 'uni-app', link: '/guide/uni-app' },
+          { text: 'Taro', link: '/guide/taro' },
+          { text: 'React Native', link: '/guide/rn' },
+          { text: '移动端通用', link: '/guide/mobile-common' },
         ]
       },
       {
@@ -97,6 +106,27 @@ export default defineConfig({
             { text: '权限控制 & 架构设计', link: '/guide/permission' },
             { text: 'Node.js & 数据库', link: '/guide/nodejs' },
             { text: '数据可视化（ECharts）', link: '/guide/visualization' },
+          ]
+        },
+        {
+          text: '移动端',
+          collapsed: false,
+          items: [
+            { text: '移动端通用知识', link: '/guide/mobile-common' },
+            { text: 'uni-app 跨端', link: '/guide/uni-app' },
+            { text: 'Taro 跨端', link: '/guide/taro' },
+            { text: 'React Native', link: '/guide/rn' },
+          ]
+        },
+        {
+          text: '工程实践',
+          collapsed: false,
+          items: [
+            { text: '性能优化', link: '/guide/performance' },
+            { text: '前端算法', link: '/guide/algorithms' },
+            { text: '错误排查', link: '/guide/debugging' },
+            { text: '网络通信', link: '/guide/networking' },
+            { text: 'DevOps（Nginx/Docker）', link: '/guide/devops' },
           ]
         },
       ],

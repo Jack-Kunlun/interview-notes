@@ -208,3 +208,149 @@ CSS Houdini 允许开发者用 JS 编写 CSS 引擎内部逻辑：
   inherits: false;
 }
 ```
+
+## 大屏自适应方案 ⭐⭐
+
+大屏（数据看板、可视化驾驶舱）的分辨率跨度极大——从 1366×768 的笔记本到 4K/8K 拼接屏都可能跑同一套页面。大屏自适应的核心诉求是"等比缩放、不变形、铺满全屏"，以下是四种主流方案。
+
+### 方案对比
+
+| 方案 | 原理 | 优点 | 缺点 | 适用场景 |
+|---|---|---|---|---|
+| `vw/vh + rem` | 视口单位 + rem 动态基准 | 纯 CSS，无 JS 缩放计算 | 比例关系不严格时文字可能偏大/偏小 | 简单大屏，内容型页面 |
+| `transform: scale` | 监听 resize，按比例整体缩放 | 设计稿 1:1 还原，不走样 | 鼠标事件坐标偏移需手动修正 | 设计稿固定比例（如 16:9） |
+| DataV / FlyFish | 组件库内置自适应容器 | 开箱即用，配套图表丰富 | 绑定框架生态，定制受限 | 可视化大屏，数据看板 |
+| 自适应 + 媒体查询 | 多断点切换布局 | 灵活可控，所有屏幕通吃 | 断点间过渡生硬，设计工作量大 | 通用页面，非严格固定比例 |
+
+### scale 变换方案（推荐掌握）
+
+核心思路：将大屏页面按固定设计稿尺寸（如 1920×1080）开发，然后通过 JS 监听 `resize` 事件，计算当前窗口与设计稿的宽高比，选择较小的缩放比例（保证不裁剪），以 `transform: scale` + `transform-origin: left top` 整体缩放并居中。
+
+缩放策略选择"最小比例"的原因：如果取 `scaleX` 和 `scaleY` 中较大的那个，另一个方向会溢出被裁剪；取较小的那个，另一个方向虽然留白但内容完整，配合背景色或 flex 居中即可消除留白感。
+
+```html
+<!-- index.html -->
+<div id="app" class="screen-container">
+  <!-- 所有大屏内容写在这里，按 1920×1080 设计稿开发 -->
+  <div class="screen-content">
+    <!-- 图表、数据等 -->
+  </div>
+</div>
+
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body, #app {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #000; /* 留白区域填充底色 */
+  }
+  .screen-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+  .screen-content {
+    /* 按设计稿固定尺寸开发 */
+    width: 1920px;
+    height: 1080px;
+    transform-origin: left top;
+    /* scale 由 JS 动态设置 */
+  }
+</style>
+
+<script>
+(function() {
+  const DESIGN_WIDTH  = 1920;
+  const DESIGN_HEIGHT = 1080;
+  const container = document.querySelector('.screen-content');
+
+  function resize() {
+    const scaleX = window.innerWidth  / DESIGN_WIDTH;
+    const scaleY = window.innerHeight / DESIGN_HEIGHT;
+    // 取较小比例，保证内容不裁剪（另一个方向留白居中）
+    const scale = Math.min(scaleX, scaleY);
+    container.style.transform = `scale(${scale})`;
+
+    // 水平 / 垂直居中偏移（处理留白侧）
+    const offsetX = (window.innerWidth  - DESIGN_WIDTH  * scale) / 2;
+    const offsetY = (window.innerHeight - DESIGN_HEIGHT * scale) / 2;
+    container.style.marginLeft = offsetX + 'px';
+    container.style.marginTop  = offsetY + 'px';
+  }
+
+  window.addEventListener('resize', resize);
+  resize(); // 首次执行
+})();
+</script>
+```
+
+**常见坑与修复**：
+
+| 问题 | 原因 | 修复 |
+|---|---|---|
+| 鼠标点击位置偏移 | `scale` 缩放后事件坐标仍是原始坐标系 | 事件处理中将 `clientX / scale` 换算 |
+| 屏幕出现滚动条 | 缩放后元素实际占位仍为 1920×1080 | 父容器设置 `overflow: hidden` |
+| 字体模糊 | scale < 1 时文字缩放到非整数像素 | 适当加大设计稿字号，优先用 `transform: translateZ(0)` 提层 |
+| iframe / video 不缩放 | 内嵌元素有独立渲染上下文 | 对其也应用 `transform: scale` 或使用 `zoom` |
+
+### vw/vh + rem 方案
+
+通过 `rem` 单位绑定根字体大小，利用 `vw` / `vh` 动态计算 `html` 的 `font-size`，让所有 rem 尺寸随视口等比变化。适合内容型大屏，实现简洁。
+
+```css
+/* 设计稿宽度 1920px，100vw = 1920px 时 1rem = 10px */
+html {
+  font-size: calc(100vw / 1920 * 10);
+  /* 1920px 视口下 1rem = 10px，写 100rem = 1000px */
+}
+
+/* 防字体过小/过大 */
+@media (max-width: 1200px) {
+  html { font-size: calc(100vw / 1200 * 10); }
+}
+@media (min-width: 2560px) {
+  html { font-size: calc(2560 / 1920 * 10px); } /* 锁定上限 */
+}
+```
+
+### px2rem PostCSS 插件配置
+
+`postcss-pxtorem` 自动将 px 转为 rem，开发时继续写 px，构建后自动换算。配合上面的 vw+rem 动态基准，做到"写设计稿 px，自动等比适配"。
+
+```js
+// postcss.config.js
+module.exports = {
+  plugins: {
+    'postcss-pxtorem': {
+      rootValue: 192,       // 设计稿宽度 / 10，即 1920 / 10 = 192
+      propList: ['*'],      // 所有属性都转换
+      selectorBlackList: ['.norem'], // 不转换的选择器
+      minPixelValue: 2,     // ≤2px 不转换（处理 1px 边框）
+      exclude: /node_modules/i,
+    },
+  },
+};
+```
+
+```js
+// vite.config.js 示例（vite 使用 postcss-pxtorem）
+import pxtorem from 'postcss-pxtorem';
+
+export default {
+  css: {
+    postcss: {
+      plugins: [
+        pxtorem({
+          rootValue: 192,
+          propList: ['*'],
+        }),
+      ],
+    },
+  },
+};
+```
+
+**`rootValue` 计算原则**：`rootValue = 设计稿宽度 / 10`。原因是 `html { font-size: calc(100vw / 1920 * 10) }` 在 1920px 视口下 `1rem = 10px`，所以插件需要知道设计稿宽度→rem 基准的换算关系。若设计稿为 1920，则 `rootValue: 192`（即 1920/10），因为源码中 `192px` → `192 / 192 = 1rem`，而 `1rem = 10px`（在 1920 视口下），因此 `192px = 1920/10 = 192px` 实际占据 1/10 宽度——与设计稿一致。
+
+**与 tailwind 共存时注意**：`rootValue` 需与 tailwind 的 rem 基准（默认 16px 即 1rem=4px 在 640px 视口下）区分，建议 tailwind 项目用 `postcss-px-to-viewport`（直接转 vw）而非 pxtorem，避免两套 rem 体系冲突。
