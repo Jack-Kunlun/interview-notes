@@ -658,6 +658,6 @@ export default function Counter({ initial = 0, max = 99 }: CounterProps) {
 - CustomWrapper 实现：`@tarojs/components` — 编译为小程序 `<custom-wrapper>` 标签
 - 事件代理 + setData 批量调度：`@tarojs/runtime` — 源码见 `packages/taro-runtime/src/event.ts`、`packages/taro-runtime/src/next-tick.ts`
 
-**踩过的坑**：Taro 的 `<ScrollView>` 没设 `height: 100%`（或具体高度值），内容撑不开导致小程序端完全不可滚动。根因是小程序 ScrollView 必须显式指定高度——CSS 的 `flex: 1` 在部分小程序基础库版本上不生效，而 H5 的 `overflow: auto` 会自动撑开。后果：小程序端整页卡死，用户反馈"页面坏了"。修复：`<ScrollView style={{ height: '100vh' }}>` 或 `calc(100vh - 导航栏高度)`，H5 端通过条件编译设 `height: auto`，用 `overflow-y: auto` 兜底。
+**踩过的坑**：Taro 的 `<ScrollView>` 没设 `height: 100%`（或具体高度值），内容撑不开导致小程序端完全不可滚动。根因是小程序 ScrollView 必须显式指定高度——CSS 的 `flex: 1` 在部分小程序基础库版本上不生效，而 H5 的 `overflow: auto` 会自动撑开。后果：小程序端整页卡死，用户反馈"页面坏了"。修复：`<ScrollView style={ { height: '100vh' } }>` 或 `calc(100vh - 导航栏高度)`，H5 端通过条件编译设 `height: auto`，用 `overflow-y: auto` 兜底。
 
 **项目选型**：Taro 更适合 React 技术栈团队做小程序+H5 双端——最大优势是"写一次 Web 标准代码，到处运行"，React 知识零迁移成本复用；uni-app 更适合 Vue 技术栈、需要 App 端或对小程序性能有极致要求的场景——编译时方案在小程序端性能接近原生。如果团队 React 为主且不做 App，选 Taro 3 是性价比最高的选择。
