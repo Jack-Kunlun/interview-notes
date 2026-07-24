@@ -1,0 +1,16 @@
+{
+  "name": "interview-notes",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vitepress dev docs",
+    "build": "vitepress build docs",
+    "preview": "vitepress preview docs"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
