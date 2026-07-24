@@ -1000,3 +1000,531 @@ state.user.name = 'Bob'
 | 兼容性 | IE9+ | 不可 polyfill，需 ES6+ |
 | 内存占用 | 每个属性一个 Dep | 共享 Proxy，无多余对象 |
 ```
+
+---
+
+## 编译宏：`defineExpose` / `defineOptions` / `defineSlots`
+
+这三个是 `<script setup>` 下的**编译宏**——只在编译阶段生效，不需要从 vue 导入，直接在模板中使用。
+
+### `defineExpose`：控制子组件暴露给父组件的属性
+
+默认情况下 `<script setup>` 的组件是"封闭"的——父组件通过 `ref` 拿不到子组件内部任何东西。`defineExpose` 手动指定哪些属性对外暴露。
+
+```vue
+<!-- 子组件 ChildModal.vue -->
+<script setup lang="ts">
+import { ref } from 'vue'
+
+const visible = ref(false)
+const open  = () => { visible.value = true }
+const close = () => { visible.value = false }
+
+// 只暴露 open/close，不暴露 visible（防止外部直接篡改）
+defineExpose({ open, close })
+</script>
+```
+
+```vue
+<!-- 父组件 -->
+<script setup lang="ts">
+import { ref } from 'vue'
+import ChildModal from './ChildModal.vue'
+
+const modalRef = ref<InstanceType<typeof ChildModal>>()
+// ✅ 可以调用
+modalRef.value?.open()
+// ❌ TypeScript 报错：visible 未暴露
+// modalRef.value?.visible
+</script>
+```
+
+| 写法 | 对外暴露 |
+|---|---|
+| 不写 `defineExpose` | 什么都不暴露 |
+| `defineExpose({ open, close })` | 只暴露 `open` 和 `close` |
+| `defineExpose({ ... })` | 暴露指定属性 |
+
+### `defineOptions`：在 `<script setup>` 中声明组件选项
+
+`<script setup>` 默认没有地方写 `name`、`inheritAttrs` 等组件选项，`defineOptions` 补齐这个缺口（Vue 3.3+）。
+
+```vue
+<script setup lang="ts">
+// 无需额外 `<script>` 块，直接在 setup 内声明组件选项
+defineOptions({
+  name: 'UserTable',          // devtools 中显示的组件名
+  inheritAttrs: false,        // 禁止自动透传 attrs 到根元素
+})
+</script>
+```
+
+### `defineSlots`：为插槽提供 TypeScript 类型
+
+```vue
+<script setup lang="ts">
+// 声明插槽的类型签名
+const slots = defineSlots<{
+  default(props: { item: User }): any    // 默认插槽，接收 item prop
+  header(): any                          // header 插槽，无 prop
+  footer(props: { count: number }): any  // footer 插槽，接收 count
+}>()
+
+// 在模板中使用时 TS 自动推导
+// <slot name="header" />                ← 不需要 prop
+// <slot :item="user" />                 ← 推导 item 类型为 User
+</script>
+```
+
+### 💬 面试深度
+
+**标准回答**：这三个都是 `<script setup>` 下的编译宏，不占运行时体积。`defineExpose` 解决 script setup 默认封闭的问题，按需暴露子组件方法/状态给父组件 ref 调用；`defineOptions` 让 script setup 也能声明组件名、inheritAttrs 等选项，不用额外开一个普通 script 块；`defineSlots` 给插槽做 TS 类型约束，IDE 和编译期就能检查插槽 prop 传错的问题。
+
+**追问预判**：
+- *`defineExpose` 和 `ref` 的关系？* → 父组件通过 `ref` 拿到子组件实例后，只能访问子组件用 `defineExpose` 暴露出来的东西。没暴露的属性和方法，TS 层面直接报错，运行时也拿不到。这和 Vue 2 的 `this.$refs.xxx` 拿组件实例完全不一样。
+- *`defineOptions` 和普通 `<script>` 块的区别？* → 功能上等价，都可以声明组件选项。但 `defineOptions` 不需要额外开一个 `<script>` 块，代码更干净。Vue 3.3 之前必须用两个 `<script>` 块（一个 setup、一个普通）。
+
+**源码在哪**：编译宏在 `packages/compiler-sfc/src/compileScript.ts` 中处理，编译器识别 `defineExpose`/`defineOptions`/`defineSlots` 并在编译时转换为对应的运行时等价代码。
+
+**踩过的坑**：封装了一个表单组件，内部有很多状态和方法，想着父组件可能要用就全部 `defineExpose` 暴露了。结果父组件里拿到了 `modalRef.value?.internalFormData` 就直接改，绕过了子组件的校验逻辑。正确做法是按需暴露，对外只给必要的 API（open/close/submit），内部状态完全封装。
+
+**项目选型**：`defineExpose` + `ref` 是 Vue 3 里"命令式子组件调用"的标准方案。如果只是想传数据，优先用 props/emits；如果需要调用子组件的方法（如 `.open()`、`.reset()`、`.focus()`），用 defineExpose + ref。
+
+---
+
+## 浅层响应式：`shallowRef` / `shallowReactive` / `triggerRef`
+
+Vue 3 默认响应式是**深层**（deep）的——嵌套对象的每一层都被代理。`shallowRef` 和 `shallowReactive` 只对顶层做响应式处理，内部嵌套不再追踪，大幅减少内存和性能开销。
+
+### `shallowRef` vs `ref`
+
+```ts
+import { ref, shallowRef, triggerRef } from 'vue'
+
+// ref：深层响应式，内部对象所有层级自动追踪
+const deep = ref({ items: [1, 2, 3], meta: { total: 100 } })
+deep.value.meta.total = 200  // ✅ 触发更新（深层追踪）
+
+// shallowRef：只有 .value 整体替换才触发更新
+const shallow = shallowRef({ items: [1, 2, 3], meta: { total: 100 } })
+shallow.value.meta.total = 200  // ❌ 不触发更新
+shallow.value = { items: [4, 5], meta: { total: 200 } }  // ✅ 整体替换触发更新
+
+// 需要手动触发更新时用 triggerRef
+shallow.value.meta.total = 200
+triggerRef(shallow)  // 强制触发依赖更新
+```
+
+| | `ref` | `shallowRef` |
+|---|---|---|
+| 追踪深度 | 深层（递归代理） | 仅 `.value` 本身 |
+| 内存占用 | 大对象较高 | 极低 |
+| 适用场景 | 普通表单、交互数据 | 大数据集、第三方不可变对象、图表配置 |
+| `.value` 访问 | 返回 Proxy | 返回原始对象 |
+
+### `shallowReactive` vs `reactive`
+
+```ts
+import { reactive, shallowReactive } from 'vue'
+
+// reactive：深层代理
+const state = reactive({
+  user: { name: 'Alice', profile: { age: 30 } }
+})
+state.user.profile.age = 31  // ✅ 触发更新（三层都代理了）
+
+// shallowReactive：只代理第一层属性
+const shallow = shallowReactive({
+  user: { name: 'Alice', profile: { age: 30 } }
+})
+shallow.user = { name: 'Bob', profile: { age: 25 } }  // ✅ 顶层属性替换触发
+shallow.user.profile.age = 31  // ❌ 深层不触发
+```
+
+### `toRef` / `toRefs`：解构保持响应式
+
+`reactive` 对象解构后会丢失响应式，`toRefs` 将每个属性转成独立的 `ref`，解构后仍能保持响应式连接。
+
+```ts
+import { reactive, toRef, toRefs } from 'vue'
+
+const state = reactive({ count: 0, name: 'Vue' })
+
+// ❌ 解构丢失响应式
+const { count, name } = state
+// count 和 name 是纯数字/字符串，不再响应式
+
+// ✅ toRefs：解构后仍响应式
+const { count: countRef, name: nameRef } = toRefs(state)
+countRef.value++  // state.count 同步变化
+
+// toRef：单个属性转 ref（可用于可选属性）
+const nameOnly = toRef(state, 'name')          // 只转 name
+const optional = toRef(state, 'missing')       // 属性不存在也创建 ref
+```
+
+### 💬 面试深度
+
+**标准回答**：`shallowRef` 和 `shallowReactive` 的核心价值是"知道什么时候不需要深层响应式"。比如从 API 拿到一个大型列表数据，你只会整体替换不会改列表里某个字段，用 `shallowRef` 就行，节省了递归代理的 CPU 和内存。`toRefs` 是让 reactive 对象可以解构的关键工具——它把每个属性变成独立的 ref 并保持与原对象的响应式连接，setup 里返回 `...toRefs(state)` 是经典写法。
+
+**追问预判**：
+- *`shallowRef` 和 `markRaw` 的区别？* → `shallowRef` 是让顶层 `.value` 响应式但内部不追踪；`markRaw` 是标记某个对象"永远不要变成响应式"。如果传给 `shallowRef` 一个大列表，列表内部的 item 对象虽然不被 `shallowRef` 深层追踪，但如果某天你用 `ref` 包装了同样数据，那些 item 还是会被代理。`markRaw` 是永久标记，任何响应式 API 碰到都会跳过。
+- *`toRefs` 和 `toRef` 什么时候用哪个？* → 需要解构整个 reactive 对象时用 `toRefs`（最常见场景）；只需要其中一个属性时用 `toRef`（减少不必要的 ref 创建）。
+
+**源码在哪**：`packages/reactivity/src/ref.ts`（shallowRef / triggerRef / toRef / toRefs）、`packages/reactivity/src/reactive.ts`（shallowReactive / markRaw）
+
+**踩过的坑**：用 `shallowRef` 存了一个图表配置对象，ECharts 内部会 mutate 这个配置（加 `_echarts_instance_` 等私有属性），某天不经意写了 `config.value.series[0].data = newData` 发现图表没更新。排查了半天才发现是 shallowRef 的深层不追踪特性——解决方案要么用 `triggerRef` 手动触发，要么用 `ref` 替代。
+
+**项目选型**：数据大屏场景下，每个图表的数据配置用 `shallowRef` 存，定时轮询拿到新数据后整体替换 `.value`，避免对大体积 JSON 做深层代理。表单、交互状态仍用 `ref`/`reactive`。`toRefs` 是写组合函数（composables）时返回值标准做法，让调用方可以按需解构。
+
+---
+
+## 响应式工具：`readonly` / `markRaw` / `toRaw` / `customRef`
+
+### `readonly` / `shallowReadonly`：锁定只读
+
+将响应式对象转为只读代理，任何修改尝试在开发环境下触发警告，常用于防止子组件意外修改 props 或 provide 注入的数据。
+
+```ts
+import { reactive, readonly, shallowReadonly } from 'vue'
+
+const state = reactive({ count: 0, user: { name: 'Vue' } })
+
+// readonly：深层只读
+const readOnly = readonly(state)
+readOnly.count = 1            // ⚠️ 开发环境警告，不生效
+readOnly.user.name = 'React'  // ⚠️ 同样警告（深层）
+
+// shallowReadonly：仅顶层只读
+const shallow = shallowReadonly(state)
+shallow.count = 1             // ⚠️ 警告，不生效
+shallow.user.name = 'React'   // ✅ 不警告（浅层不管内部）
+```
+
+| | `readonly` | `shallowReadonly` |
+|---|---|---|
+| 顶层 | 只读 | 只读 |
+| 嵌套对象 | 递归只读 | 可修改 |
+| 场景 | 防止深层修改 | 仅锁定顶层引用 |
+
+### `markRaw` / `toRaw`：标记不代理 / 获取原始对象
+
+```ts
+import { reactive, markRaw, toRaw } from 'vue'
+
+// markRaw：标记对象"永不代理"
+const largeData = markRaw({ values: new Array(100000) })
+const state = reactive({ list: largeData })
+state.list.values[0] = 1  // ✅ 不会触发响应式追踪（省内存）
+
+// toRaw：获取 reactive/readonly 代理的原始对象
+const raw = reactive({ count: 0 })
+const original = toRaw(raw)
+console.log(raw === original)  // false（raw 是 Proxy）
+console.log(toRaw(raw) === original)  // true
+```
+
+### `customRef`：自定义 ref 的 get/set 行为
+
+```ts
+import { customRef } from 'vue'
+
+// 实现一个防抖 ref：set 后 300ms 才更新视图
+function useDebouncedRef<T>(value: T, delay = 300) {
+  let timeout: ReturnType<typeof setTimeout>
+  return customRef<T>((track, trigger) => ({
+    get() {
+      track()          // 收集依赖
+      return value
+    },
+    set(newVal) {
+      clearTimeout(timeout)
+      timeout = setTimeout(() => {
+        value = newVal
+        trigger()       // 触发更新
+      }, delay)
+    }
+  }))
+}
+
+const searchText = useDebouncedRef('')
+// 用户快速输入 "hello"，只有最后一次 300ms 后才触发视图更新
+```
+
+### 💬 面试深度
+
+**标准回答**：这四个 API 都是 Vue 3 响应式系统的"精细控制"工具。`readonly` 锁定数据流向，防止子组件意外修改数据源；`markRaw` 标记大数据对象跳过代理，典型场景是 ECharts 实例、第三方库对象；`toRaw` 从代理取出原始对象用于传给非 Vue 库；`customRef` 自定义依赖收集和触发更新的时机，实现防抖、节流、异步数据桥等定制行为。
+
+**追问预判**：
+- *`readonly` 和 `Object.freeze` 的区别？* → `Object.freeze` 是纯 JS，不可逆，性能开销在高嵌套对象上比较大。`readonly` 是 Vue 的 Proxy 包装，对响应式数据做只读代理但不对内部做 freeze，开销更低且可被 `toRaw` 穿透。
+- *`customRef` 和 `computed` 的区别？* → computed 是基于其他响应式值的纯派生，自动缓存；customRef 手动控制何时 track/trigger，适合与外部非响应式数据源（WebSocket、localStorage、浏览器 API）建立响应式桥梁。
+
+**源码在哪**：`packages/reactivity/src/reactive.ts`（readonly / shallowReadonly / markRaw / toRaw）、`packages/reactivity/src/ref.ts`（customRef）
+
+**踩过的坑**：用 computed 包装了一个 localStorage 读写，但 computed 只能读不能写（没有 setter），用户改输入框时没法回写到 localStorage。换成 `customRef`，get 时从 localStorage 读 + track，set 时写到 localStorage + trigger，完美实现双向同步。
+
+**项目选型**：`markRaw` 在数据大屏项目中是刚需——每个图表实例（几千行配置）如果用 reactive 包裹，递归代理的开销是指数级的，markRaw 后只代理引用本身不代理内部，性能差距巨大。
+
+---
+
+## Vue 3.4+ 新 Hook：`useTemplateRef` / `useId` / `useModel`
+
+### `useTemplateRef`：类型安全的模板引用（Vue 3.5+）
+
+替代传统的 `ref(null)` 获取模板 DOM/组件引用，类型推导更精确，支持动态 ref 名。
+
+```vue
+<script setup lang="ts">
+import { useTemplateRef, onMounted } from 'vue'
+
+// 与模板中 ref="inputEl" 绑定，自动推导 HTMLInputElement
+const inputEl = useTemplateRef<HTMLInputElement>('inputEl')
+
+onMounted(() => {
+  inputEl.value?.focus()
+})
+</script>
+
+<template>
+  <input ref="inputEl" placeholder="自动聚焦" />
+</template>
+```
+
+| | `useTemplateRef('name')` | `ref(null)` + `ref="name"` |
+|---|---|---|
+| 类型推导 | 泛型自动推导 | 需手动声明 `ref<HTMLInputElement \| null>` |
+| 动态 ref | ✅ 支持 | ❌ 不支持 |
+| 版本要求 | Vue 3.5+ | Vue 3.0+ |
+
+### `useId`：生成组件级唯一 ID
+
+每个组件实例一个唯一 ID，服务端渲染（SSR）中服务端和客户端 ID 一致，避免 hydration mismatch。
+
+```vue
+<script setup>
+import { useId } from 'vue'
+
+const id = useId()  // 如 "v-0"、"v-1"...
+</script>
+
+<template>
+  <label :for="id">姓名</label>
+  <input :id="id" />
+  <!-- 渲染为 <label for="v-0">姓名</label><input id="v-0" /> -->
+</template>
+```
+
+### `useModel`：简化子组件 v-model 实现（Vue 3.4+）
+
+替代手动 `defineProps` + `defineEmits` 的样板代码，一行搞定 props 声明和 emit。
+
+```vue
+<!-- 父组件 -->
+<MyInput v-model="text" v-model:title="title" />
+
+<!-- 子组件 MyInput.vue — Vue 3.4 新写法 -->
+<script setup lang="ts">
+// 旧写法（需手动声明 props + emits）
+// const props = defineProps<{ modelValue: string; title: string }>()
+// const emit = defineEmits<{ 'update:modelValue': [v: string]; 'update:title': [v: string] }>()
+
+// 新写法：一行搞定
+const modelValue = useModel<string>()      // 默认 v-model
+const title = useModel<string>('title')    // v-model:title
+
+// 直接赋值即 emit
+modelValue.value = '新值'  // 等价于 emit('update:modelValue', '新值')
+</script>
+```
+
+### 💬 面试深度
+
+**标准回答**：`useTemplateRef` 是 Vue 3.5 对模板引用的类型安全升级——过去 `ref(null)` 拿模板 DOM 全靠自己加泛型，而且不能动态选 ref 名；`useId` 解决 SSR hydration 场景下 ID 一致性问题，也避免手写随机 ID 撞车；`useModel` 是 3.4 的最大 DX 提升，把 `defineProps` + `defineEmits` 的双向绑定样板变成一行代码，封装可复用表单组件时特别爽。
+
+**追问预判**：
+- *`useModel` 和 `defineModel` 的区别？* → Vue 3.4 同时推出了 `defineModel`（编译宏，推荐）和 `useModel`（运行时 API）。`defineModel` 更简洁且不占运行时体积，`useModel` 用在不能使用 `<script setup>` 的场景。新项目优先用 `defineModel`。
+- *`useId` 生成 ID 的规则是什么？* → 格式为 `v-{instance.uid}`，组件 uid 递增，同一组件树的多次渲染 ID 一致（SSR 关键）。不能自定义前缀，如果需要语义化 ID 自己拼接即可。
+
+**源码在哪**：`packages/runtime-core/src/helpers/useTemplateRef.ts`、`packages/runtime-core/src/helpers/useId.ts`、`packages/runtime-core/src/components/useModel.ts`
+
+**踩过的坑**：用 `useId()` 给表单 label-input 绑定，结果在 `v-for` 循环里每个 item 拿到的 ID 都一样——因为 `useId` 是组件级别唯一，不是循环级别。正确做法是在循环里自己拼接索引：`:id="\`${id}-${index}\`"`。
+
+**项目选型**：`defineModel`（编译宏版本）替代所有手写 v-model props/emits——代码量减半且类型安全。`useTemplateRef` 在新项目里替代 `ref(null)` 的模板引用写法。
+
+---
+
+## 组合逻辑与边界控制：`effectScope` / KeepAlive / `useAttrs` / `useSlots` / `nextTick`
+
+### `effectScope`：批量管理副作用生命周期
+
+Vue 的 `watch` / `watchEffect` / `computed` 在组件内会自动随组件卸载而停止，但在组合函数（composable）或独立模块中手动管理副作用生命周期就需要 `effectScope`——它创建一个"作用域"，内部所有 effect 随 scope 一起创建、一起销毁。
+
+```ts
+import { effectScope, onScopeDispose, ref, watchEffect } from 'vue'
+
+// 创建一个副作用作用域——不依赖组件生命周期
+const scope = effectScope()
+
+scope.run(() => {
+  const count = ref(0)
+
+  // 订阅数据变化
+  watchEffect(() => console.log('count:', count.value))
+
+  // 注册作用域销毁时的清理逻辑
+  onScopeDispose(() => console.log('scope 销毁，清理资源'))
+
+  // 返回给外部使用
+  return { count }
+})
+
+// 需要时手动销毁整个作用域——内部所有 watch/watchEffect 同时停止
+scope.stop()
+```
+
+| 场景 | 方案 |
+|---|---|
+| 组件内 | 什么都不做，自动随组件卸载 |
+| 组合函数返回给外部用 | `effectScope` 包一层，外部可控销毁 |
+| Pinia Setup Store | 内部自动用 `effectScope` 管理 |
+| 全局事件监听/轮询 | `effectScope` + `onScopeDispose` |
+
+### `getCurrentScope`：获取当前所在的 effectScope
+
+```ts
+import { getCurrentScope } from 'vue'
+
+function useMyFeature() {
+  const scope = getCurrentScope()  // 获取当前所在 scope（组件内自动有）
+  if (scope) {
+    scope.run(() => { /* 在当前 scope 内注册 effect */ })
+  }
+}
+```
+
+### KeepAlive 生命周期：`onActivated` / `onDeactivated`
+
+`<KeepAlive>` 缓存组件不会触发 `onUnmounted`，取而代之的是激活/失活钩子，用于回显数据和暂停副作用。
+
+```vue
+<script setup>
+import { onActivated, onDeactivated } from 'vue'
+
+onActivated(() => {
+  // 组件从缓存中激活时触发（每次切回来都执行）
+  console.log('组件激活，恢复轮询')
+})
+
+onDeactivated(() => {
+  // 组件被缓存时触发（不会被销毁）
+  console.log('组件失活，暂停轮询')
+})
+</script>
+```
+
+```vue
+<!-- 典型用法：KeepAlive + 动态组件 -->
+<KeepAlive :include="['UserList', 'Dashboard']">
+  <component :is="currentView" />
+</KeepAlive>
+```
+
+### `useAttrs` / `useSlots`：在 `<script setup>` 中访问 attrs 和 slots
+
+```vue
+<script setup lang="ts">
+import { useAttrs, useSlots } from 'vue'
+
+// fallthrough 属性（class、style、v-bind="$attrs" 中未声明的 props）
+const attrs = useAttrs()
+// attrs.class、attrs.id、attrs.onClick 等，自动排除已声明的 props
+
+// 插槽对象——用于手动渲染或判断插槽是否存在
+const slots = useSlots()
+const hasFooter = computed(() => !!slots.footer)
+</script>
+```
+
+### `nextTick`：等待 DOM 更新完成
+
+```ts
+import { nextTick } from 'vue'
+
+const count = ref(0)
+
+function increment() {
+  count.value++
+  // 此时 DOM 还没更新
+  console.log(document.querySelector('.count')?.textContent)  // 旧值
+
+  await nextTick()
+  // 此时 DOM 已更新
+  console.log(document.querySelector('.count')?.textContent)  // 新值
+}
+```
+
+### 💬 面试深度
+
+**标准回答**：`effectScope` 解决了"不用组件的响应式副作用管理"问题——像 Pinia Setup Store、独立的数据监听模块，都需要能手动控制一组 watch 的创建和销毁。KeepAlive 的 `onActivated`/`onDeactivated` 代替 `onMounted`/`onUnmounted` 管理缓存组件的副作用生命周期（关键是暂停而非销毁）。`useAttrs` 让透传属性的逻辑不依赖模板（可以在 JS 里判断和转发），`nextTick` 解决 DOM 更新异步队列的时序问题。
+
+**追问预判**：
+- *`effectScope` 和 `watch` 的返回 stop 函数有什么区别？* → watch 返回的 stop 只停一个 watcher，effectScope.stop 能同时停 100 个 watcher + computed + watchEffect。组合函数返回给外部使用时，返回 scope.stop 比返回十几个 stop 函数干净得多。
+- *KeepAlive 缓存的组件什么时候真正销毁？* → 调用 `onBeforeUnmount` / `onUnmounted` 时——这发生在组件被 KeepAlive 的 `exclude` 排除、或者 KeepAlive 自身被销毁、或者手动调用 `deactivate` 移除缓存。`onDeactivated` 只在缓存时触发，不代表销毁。
+
+**源码在哪**：`packages/reactivity/src/effectScope.ts`、`packages/runtime-core/src/components/KeepAlive.ts`、`packages/runtime-core/src/helpers/useAttrs.ts`、`packages/runtime-core/src/scheduler.ts`（nextTick）
+
+**踩过的坑**：在 KeepAlive 缓存的列表页里用 `setInterval` 轮询数据，在 `onUnmounted` 里 `clearInterval`——结果发现切到详情页后轮询还在跑。原因是 KeepAlive 缓存不会触发 `onUnmounted`，定时器没被清掉。修复：在 `onDeactivated` 里清定时器，`onActivated` 里重新启动。
+
+**项目选型**：写可复用组合函数（如 `usePolling`、`useWebSocket`）时必须用 `effectScope` 包一层，否则调用方没法在不需要时销毁内部的所有副作用——内存泄漏风险很高。
+
+---
+
+## 样式与模板杂项：`useCssModule` / `useCssVars`
+
+### `useCssModule`：在 JS 中访问 CSS Module 类名
+
+```vue
+<template>
+  <div :class="$style.container">内容</div>
+</template>
+
+<style module>
+.container { padding: 20px; }
+.active { color: red; }
+</style>
+
+<script setup lang="ts">
+import { useCssModule } from 'vue'
+
+// 获取默认 CSS Module（可传 name 指定多个 module）
+const $style = useCssModule()
+
+// 动态类名仍可用
+const isActive = ref(true)
+const containerClass = computed(() =>
+  isActive.value ? [$style.container, $style.active] : $style.container
+)
+</script>
+```
+
+### `useCssVars`：运行时动态 CSS 变量（Vue 3.4+）
+
+```vue
+<script setup>
+import { useCssVars } from 'vue'
+
+// 声明的变量自动注入为组件根元素的 CSS 变量
+const vars = useCssVars({
+  '--primary-color': '#1a3a5c',
+  '--font-size': '14px',
+})
+// 根元素自动获得 style="--primary-color: #1a3a5c; --font-size: 14px"
+</script>
+
+<style scoped>
+.title {
+  color: var(--primary-color);
+  font-size: var(--font-size);
+}
+</style>
+```

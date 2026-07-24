@@ -832,3 +832,344 @@ function App() {
 **踩过的坑**：升级 React 19 后旧代码中大量的 `forwardRef` 虽仍能工作，但新加入的开发者看到文档说 ref 可以直接作为 prop 后混用了两种写法，导致代码风格不一致，Code Review 时出现混淆。修复：团队达成协议——新组件统一使用 ref prop 直传，旧组件逐步迁移；配置 ESLint 规则 `react/no-forward-ref`（warn 级别）提醒逐步消除。
 
 **项目选型**：新项目直接选 React 19 而非停留在 18，因为 Actions API 和 `use()` 大幅简化了表单和异步数据处理代码，且向后兼容性良好，迁移成本极低。
+
+---
+
+## `useReducer`：复杂状态逻辑的 reducer 模式 ⭐⭐⭐
+
+`useReducer` 是 `useState` 的替代方案，适合**下一个状态依赖上一个状态**、**多个子状态联动更新**或**状态更新逻辑复杂**的场景。核心思想是把状态更新逻辑从组件内抽离到纯函数 `reducer(state, action) → newState`。
+
+### 基础用法
+
+```tsx
+import { useReducer } from 'react'
+
+// 1. 定义 reducer 纯函数
+type State = { count: number; step: number }
+type Action = { type: 'increment' } | { type: 'decrement' } | { type: 'setStep'; payload: number }
+
+function reducer(state: State, action: Action): State {
+  switch (action.type) {
+    case 'increment': return { ...state, count: state.count + state.step }
+    case 'decrement': return { ...state, count: state.count - state.step }
+    case 'setStep':   return { ...state, step: action.payload }
+    default:          return state
+  }
+}
+
+// 2. 组件中使用
+function Counter() {
+  const [state, dispatch] = useReducer(reducer, { count: 0, step: 1 })
+
+  return (
+    <div>
+      <p>count: {state.count}</p>
+      <button onClick={() => dispatch({ type: 'increment' })}>+{state.step}</button>
+      <button onClick={() => dispatch({ type: 'decrement' })}>-{state.step}</button>
+      <input value={state.step}
+        onChange={e => dispatch({ type: 'setStep', payload: Number(e.target.value) })} />
+    </div>
+  )
+}
+```
+
+### `useState` vs `useReducer` 选择
+
+| | `useState` | `useReducer` |
+|---|---|---|
+| 状态复杂度 | 简单独立值 | 多个关联值 |
+| 更新逻辑 | `setX(newVal)` 或 `setX(c => c+1)` | `dispatch({ type, payload })` |
+| 下一状态依赖上一状态 | 需函数式更新 `setCount(c => c+1)` | 天然依赖 `state` 参数 |
+| 可测试性 | 逻辑分散在组件中 | reducer 是纯函数，单测友好 |
+| 典型场景 | 表单输入、开关、单个计数器 | 购物车、表单多字段联动、复杂筛选 |
+
+### 惰性初始化（第三个参数）
+
+```tsx
+// 第三个参数是 init 函数，只在首次渲染时执行一次
+const [state, dispatch] = useReducer(reducer, initialArg, (arg) => ({
+  ...arg,
+  timestamp: Date.now(),   // 只计算一次
+}))
+```
+
+### 配合 Context 做轻量状态管理
+
+```tsx
+// store.tsx — 比 Redux 轻 100 倍，适合中小型应用
+import { createContext, useContext, useReducer, ReactNode } from 'react'
+
+type AppState = { user: User | null; theme: 'light' | 'dark' }
+type AppAction =
+  | { type: 'login'; payload: User }
+  | { type: 'logout' }
+  | { type: 'toggleTheme' }
+
+function appReducer(state: AppState, action: AppAction): AppState {
+  switch (action.type) {
+    case 'login':       return { ...state, user: action.payload }
+    case 'logout':      return { ...state, user: null }
+    case 'toggleTheme': return { ...state, theme: state.theme === 'light' ? 'dark' : 'light' }
+    default:            return state
+  }
+}
+
+const AppContext = createContext<{ state: AppState; dispatch: React.Dispatch<AppAction> }>(null!)
+
+export function AppProvider({ children }: { children: ReactNode }) {
+  const [state, dispatch] = useReducer(appReducer, { user: null, theme: 'light' })
+  return <AppContext.Provider value={{ state, dispatch }}>{children}</AppContext.Provider>
+}
+
+export function useAppState() { return useContext(AppContext) }
+```
+
+### 💬 面试深度
+
+**标准回答**：`useReducer` 本质是把 `setState` 的更新逻辑从事件处理函数里抽成独立纯函数。它有三个核心优势：第一，当多个状态更新互相关联时（如表单校验多个字段联动），reducer 把"做什么"和"怎么做"分离，组件里只 dispatch action，reducer 里集中处理状态转换；第二，reducer 是纯函数，可以脱离 React 环境单独测试，比测试组件中的内联 setState 容易得多；第三，配合 Context 可以做比 Redux 轻得多的状态管理，特别适合中小型应用。
+
+**追问预判**：
+- *`useReducer` 和 Redux 的区别？* → Redux 是基于 `useReducer` 之上加了中间件（redux-thunk/redux-saga）、DevTools 时间旅行、全局单一 store 和社区生态。如果你只需要在组件树局部管理复杂状态，`useReducer` + Context 足够；如果需要跨页面共享、需要中间件（如 API 请求自动缓存），用 Redux Toolkit。
+- *为什么 `useReducer` 能避免闭包陷阱？* → dispatch 函数在每次渲染时保持引用稳定（React 保证），而且 reducer 接收的是最新 state 快照作为参数而非闭包捕获的旧值。因此 dispatch 给 reducer 的 state 永远是"当时"的最新值，不会有闭包过期问题。
+
+**源码在哪**：`packages/react-reconciler/src/ReactFiberHooks.js`，`useReducer` 和 `useState` 共享同一个 `mountReducer`/`updateReducer` 实现，`useState` 本质是预置了 reducer 为"新值或函数式更新直接替换"的 `useReducer`。
+
+**踩过的坑**：用 `useReducer` 管理表单，每个字段变化都 dispatch 一个 action——结果每次 dispatch 都触发整个组件重渲染，和用 `useState` 没区别。`useReducer` 不提供自动的渲染优化（不像 Redux useSelector 有 selector 级别的重渲染控制），如果渲染性能是瓶颈，需要配合 `React.memo` 或拆分组件来缩小重渲染范围。
+
+**项目选型**：复杂表单（如多步骤向导、动态表单数组）用 `useReducer` 而非多个 `useState`——reducer 能让所有字段修改路径可视化且可测试，而且天然规避多个 setState 的状态一致性问题。
+
+---
+
+## `useInsertionEffect` / `useDebugValue` / 自定义 Hook 设计 ⭐⭐
+
+### `useInsertionEffect`：CSS-in-JS 专用
+
+执行时机在 **DOM 变更后、`useLayoutEffect` 之前**，专门为 CSS-in-JS 库（如 styled-components、Emotion）设计——在浏览器计算布局前注入样式规则，避免闪烁。
+
+```tsx
+import { useInsertionEffect } from 'react'
+
+// 正常业务代码不应使用此 Hook —— 它是给库作者用的
+function useCSS(rule: string) {
+  useInsertionEffect(() => {
+    const style = document.createElement('style')
+    style.textContent = rule
+    document.head.appendChild(style)
+    return () => document.head.removeChild(style)
+  }, [rule])
+}
+```
+
+| Hook | 执行时机 | 适用场景 |
+|---|---|---|
+| `useEffect` | 浏览器绘制**之后** | 数据请求、DOM 无关副作用 |
+| `useLayoutEffect` | DOM 变更后、绘制**之前** | 读取布局信息、避免闪烁 |
+| `useInsertionEffect` | DOM 变更后、layout 之前 | CSS-in-JS 样式注入 |
+
+### `useDebugValue`：React DevTools 自定义标签
+
+为自定义 Hook 在 DevTools 中显示可读标签，方便调试。
+
+```tsx
+import { useDebugValue, useState, useEffect } from 'react'
+
+function useOnlineStatus() {
+  const [isOnline, setIsOnline] = useState(navigator.onLine)
+
+  // DevTools 中此 Hook 的组件会显示: "OnlineStatus: online" 或 "OnlineStatus: offline"
+  useDebugValue(isOnline ? 'online' : 'offline')
+
+  // 复杂格式化可传第二个参数（惰性格式化，只在 DevTools 打开时执行）
+  // useDebugValue(date, date => date.toISOString())
+
+  useEffect(() => {
+    const goOnline  = () => setIsOnline(true)
+    const goOffline = () => setIsOnline(false)
+    window.addEventListener('online', goOnline)
+    window.addEventListener('offline', goOffline)
+    return () => {
+      window.removeEventListener('online', goOnline)
+      window.removeEventListener('offline', goOffline)
+    }
+  }, [])
+
+  return isOnline
+}
+```
+
+### 自定义 Hook 设计原则
+
+```tsx
+// ✅ 好的自定义 Hook
+// 1. 以 use 开头（React lint 规则强制）
+// 2. 单一职责：一个 Hook 只做一件事
+// 3. 返回清晰的值或 API 对象
+// 4. 内部使用 useCallback/useMemo 稳定导出引用
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState(value)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedValue(value), delay)
+    return () => clearTimeout(timer)  // 关键：清理上次的定时器
+  }, [value, delay])
+
+  return debouncedValue
+}
+
+function useLocalStorage<T>(key: string, initialValue: T) {
+  const [storedValue, setStoredValue] = useState<T>(() => {
+    try {
+      const item = window.localStorage.getItem(key)
+      return item ? JSON.parse(item) : initialValue
+    } catch { return initialValue }
+  })
+
+  const setValue = (value: T | ((val: T) => T)) => {
+    const valueToStore = value instanceof Function ? value(storedValue) : value
+    setStoredValue(valueToStore)
+    window.localStorage.setItem(key, JSON.stringify(valueToStore))
+  }
+
+  return [storedValue, setValue] as const
+}
+```
+
+| 原则 | 说明 |
+|---|---|
+| `use` 前缀 | 让 React 识别为 Hook，lint 规则检查依赖 |
+| 单一职责 | `useDebounce`、`useLocalStorage`，不要做一个 `useEverything` |
+| 清理副作用 | `useEffect` 中务必返回清理函数 |
+| 稳定引用 | 返回的函数用 `useCallback`，对象用 `useMemo` |
+| 无 UI | Hook 只处理逻辑，不返回 JSX |
+| 泛型支持 | 用 TypeScript 泛型让 Hook 类型安全 |
+
+---
+
+## React 19 Actions：`useOptimistic` / `useActionState` / `useFormStatus` ⭐⭐
+
+React 19 引入 Actions API，把表单提交、loading 状态、错误处理、乐观更新统一为声明式模式，替代了传统的 `e.preventDefault()` + 手动 `setLoading(true/false)`。
+
+### `useFormStatus`：读取表单提交状态
+
+必须在 `<form>` 子组件中使用，自动感知父表单的 `pending` 状态。
+
+```tsx
+import { useFormStatus } from 'react-dom'
+
+function SubmitButton() {
+  const { pending } = useFormStatus()
+  return (
+    <button type="submit" disabled={pending}>
+      {pending ? '提交中...' : '提交'}
+    </button>
+  )
+}
+
+// 配合 form action 使用
+function Form() {
+  async function submitAction(formData: FormData) {
+    await saveToAPI(formData.get('name'))
+  }
+
+  return (
+    <form action={submitAction}>
+      <input name="name" />
+      <SubmitButton />
+    </form>
+  )
+}
+```
+
+### `useActionState`：表单状态一体化管理
+
+把 `action`（提交函数）、`state`（返回值）和 `pending` 合为一体，一个 Hook 替代了 `useState` × 3 + `useTransition`。
+
+```tsx
+import { useActionState } from 'react'
+
+type State = { error?: string; success?: string }
+
+async function updateProfile(prevState: State, formData: FormData): Promise<State> {
+  const name = formData.get('name') as string
+  if (!name) return { error: '姓名不能为空' }
+  try {
+    await saveProfile(name)
+    return { success: '保存成功' }
+  } catch {
+    return { error: '保存失败，请重试' }
+  }
+}
+
+function ProfileForm() {
+  const [state, submitAction, isPending] = useActionState(updateProfile, {})
+
+  return (
+    <form action={submitAction}>
+      <input name="name" />
+      <button type="submit" disabled={isPending}>保存</button>
+      {state.error   && <p className="error">{state.error}</p>}
+      {state.success && <p className="success">{state.success}</p>}
+    </form>
+  )
+}
+```
+
+### `useOptimistic`：乐观更新
+
+在服务器响应之前就更新 UI，如果请求失败则自动回滚。适合点赞、收藏、拖拽排序等即时反馈场景。
+
+```tsx
+import { useOptimistic } from 'react'
+
+function TodoList({ todos }: { todos: Todo[] }) {
+  // optimisticTodos：立即反映更新的临时数组
+  // addOptimisticTodo：触发乐观更新的函数
+  const [optimisticTodos, addOptimisticTodo] = useOptimistic(
+    todos,
+    (state, newTodo: Todo) => [...state, newTodo]
+  )
+
+  async function handleAdd(formData: FormData) {
+    const text = formData.get('text') as string
+    // 立即乐观添加
+    addOptimisticTodo({ id: crypto.randomUUID(), text, done: false })
+    // 后台真正提交
+    await createTodo(text)
+  }
+
+  return (
+    <>
+      <form action={handleAdd}>
+        <input name="text" />
+        <button type="submit">添加</button>
+      </form>
+      {optimisticTodos.map(todo => (
+        <div key={todo.id}>{todo.text}</div>
+      ))}
+    </>
+  )
+}
+```
+
+### 三个 Action Hook 对比
+
+| Hook | 核心能力 | 替代表现 |
+|---|---|---|
+| `useFormStatus` | 读取最近 `<form>` 的 pending 状态 | 手动传 `loading` prop |
+| `useActionState` | action + state + pending 一体化 | `useState` + `useTransition` |
+| `useOptimistic` | 乐观更新 + 自动回滚 | 手动管理临时状态 + try/catch |
+
+### 💬 面试深度
+
+**标准回答**：React 19 的 Actions API 把表单处理从命令式变成了声明式。`useActionState` 一个 Hook 就管理了表单的状态、loading 和提交逻辑，替代了以前 `useState` + `useTransition` + `e.preventDefault()` 三件套；`useFormStatus` 让子组件无需通过 props 就能感知父 form 的提交状态，避免了 prop drilling；`useOptimistic` 让乐观更新变成了 React 内置能力——以前要自己写一套"先改 UI → 请求失败再回滚"的逻辑，现在直接用 `useOptimistic` 包裹状态，React 自动处理回滚。
+
+**追问预判**：
+- *`useActionState` 和 `useTransition` 的关系？* → `useActionState` 内部基于 `useTransition` 实现，但它额外封装了状态管理和 action 调用。如果只需要 isPending 标记，用 `useTransition` 更轻；如果需要接管表单提交的完整生命周期（状态、错误、pending），用 `useActionState`。
+- *`useOptimistic` 回滚机制是怎么实现的？* → 当传入的原始数据（第一个参数）变化时，React 自动丢弃之前所有乐观更新，以新数据为基准重建。也就是说，如果服务器 API 失败且你更新了原始数据源，乐观更新会被清掉；如果你不发请求也不改数据源，乐观状态会一直保留。
+
+**源码在哪**：`packages/react-dom/src/client/ReactDOMForm.js`（form action）、`packages/react-reconciler/src/ReactFiberHooks.js`（useOptimistic 等）
+
+**踩过的坑**：用 `useOptimistic` 做列表拖拽排序，drag 过程中不断调用 `addOptimisticTodo`，结果原始数据源没变（还没调 API），但 UI 一直在叠乐观数据——因为 `useOptimistic` 不会去重，每次 dispatch 都在 previous optimistic state 上累积。正确做法是在调 API 前只触发一次乐观更新，后续拖拽移动通过本地 state 管理，API 成功后用返回数据替换整个列表。
+
+**项目选型**：新项目的表单处理全面用 Actions API 替代手写 `onSubmit` + `setLoading`，代码量减少约 40%。唯一例外是复杂表单仍用 React Hook Form（有字段级校验和性能优化的优势），但提交部分可以用 form action 接管。
