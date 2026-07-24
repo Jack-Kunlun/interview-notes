@@ -20,6 +20,7 @@ export default defineConfig({
       {
         text: '知识点',
         items: [
+          { text: 'JavaScript 基础', link: '/guide/javascript' },
           { text: 'Vue（2 & 3）', link: '/guide/vue' },
           { text: 'React', link: '/guide/react' },
           { text: 'TypeScript', link: '/guide/typescript' },
@@ -56,6 +57,13 @@ export default defineConfig({
     // 侧边栏
     sidebar: {
       '/guide/': [
+        {
+          text: '语言基础',
+          collapsed: false,
+          items: [
+            { text: 'JavaScript 基础', link: '/guide/javascript' },
+          ]
+        },
         {
           text: '框架与语言',
           collapsed: false,

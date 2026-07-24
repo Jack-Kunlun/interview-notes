@@ -17,6 +17,10 @@ hero:
       link: /contribute
 
 features:
+  - icon: 💛
+    title: JavaScript 基础
+    details: 原型链、闭包、this指向、Promise、ES6+、防抖节流
+    link: /guide/javascript
   - icon: 🟢
     title: Vue（2 & 3）
     details: Composition API、响应式原理、Diff 算法、Pinia、Vue 3 编译器

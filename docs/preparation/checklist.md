@@ -9,6 +9,7 @@ description: 技术、材料、后勤、心态四类面试前准备 checklist
 
 ### 核心知识点（必须完成）
 
+- [ ] **JavaScript 基础**：原型链 / 闭包 / this / Promise / ES6+ / 防抖节流
 - [ ] Vue（2 & 3）：响应式原理 / Composition API / 生命周期 / Diff 算法
 - [ ] React：Hooks / Fiber / React 18 新特性 / 闭包陷阱
 - [ ] TypeScript：泛型 / 工具类型 / `infer` / 类型守卫

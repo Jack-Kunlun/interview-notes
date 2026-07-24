@@ -7,19 +7,70 @@ description: BFC、层叠上下文、CSS 动画、合成层、响应式布局
 
 ## 必会基础 ⭐⭐⭐
 
-- [ ] 盒模型：`content-box` vs `border-box`，`box-sizing` 的作用
-- [ ] Flexbox：`flex-grow` / `flex-shrink` / `flex-basis` 的分配算法
-- [ ] Grid：`grid-template-columns` / `fr` 单位 / `grid-area`
+### 盒模型
+
+`box-sizing` 决定元素宽高的计算方式。`content-box`（默认）下 `width` 仅包含内容区，padding 和 border 会撑大元素；`border-box` 下 `width` 包含内容 + padding + border，更符合直觉，也是现代 CSS reset 的首选。面试中常考两者的尺寸计算差异，例如给 `width: 200px; padding: 20px; border: 5px`，分别回答两种模式下的实际占用宽度。
+
+```css
+/* content-box：实际宽度 = 200 + 20×2 + 5×2 = 250px */
+.box-content { box-sizing: content-box; width: 200px; padding: 20px; border: 5px solid #333; }
+
+/* border-box：实际宽度 = 200px（内容区被压缩为 150px） */
+.box-border { box-sizing: border-box; width: 200px; padding: 20px; border: 5px solid #333; }
+
+/* 全局推荐 */
+*, *::before, *::after { box-sizing: border-box; }
+```
+
+### Flexbox
+
+Flex 项目的大小由 `flex-grow`（扩张比例）、`flex-shrink`（收缩比例）和 `flex-basis`（基准尺寸）三者共同决定。分配算法：先按 `flex-basis` 分配初始空间，剩余空间按 `flex-grow` 比例瓜分，空间不足时按 `flex-shrink × flex-basis` 的加权比例收缩。`flex: 1` 是 `flex: 1 1 0%` 的简写，意味着从 0 开始均分；而 `flex: auto` 等价于 `flex: 1 1 auto`，从内容自身尺寸开始均分，两者行为有细微差异。
+
+```css
+/* 三等分容器 */
+.container { display: flex; }
+.item { flex: 1; }  /* flex-grow: 1; flex-shrink: 1; flex-basis: 0% */
+
+/* 固定侧边栏 + 自适应内容 */
+.sidebar { flex: 0 0 260px; }  /* 不伸缩，固定 260px */
+.content { flex: 1 1 auto; }   /* 自动伸缩填满剩余空间 */
+```
+
+| 属性 | 作用 | 默认值 |
+|---|---|---|
+| `flex-grow` | 剩余空间分配权重 | `0` |
+| `flex-shrink` | 空间不足时收缩权重 | `1` |
+| `flex-basis` | 初始主轴尺寸 | `auto` |
+| `flex` (简写) | 推荐写法 `flex: 1` | `0 1 auto` |
+
+### Grid
+
+CSS Grid 提供二维布局能力。`grid-template-columns` 定义列轨道，`fr` 单位表示剩余空间的一份比例（类似 `flex-grow` 但作用于轨道），`grid-area` 配合 `grid-template-areas` 以命名方式放置子元素，可读性比行列编号更好。Grid 适合页面级大布局，Flexbox 适合组件级一维排列。
+
+```css
+/* fr 单位：三列等比 */
+.grid { display: grid; grid-template-columns: 1fr 2fr 1fr; }
+
+/* grid-template-areas + grid-area */
+.layout {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  grid-template-areas:
+    "header  header"
+    "sidebar content"
+    "footer  footer";
+}
+.header  { grid-area: header; }
+.sidebar { grid-area: sidebar; }
+.content { grid-area: content; }
+.footer  { grid-area: footer; }
+```
 
 ## 进阶考点 ⭐⭐
 
-- [ ] **BFC**（块级格式化上下文）：触发条件与应用（清浮动、防 margin 塌陷）
-- [ ] **层叠上下文**：`z-index` 生效条件与层叠顺序
-- [ ] CSS 动画性能：`transform` / `opacity` 在合成线程执行（不触发重排）
-- [ ] 响应式：媒体查询 / 容器查询 / `clamp()` 流式排版
-- [ ] `contain`：CSS containment 隔离性能优化
+### BFC（块级格式化上下文）
 
-## BFC 触发方式
+BFC 是一个独立的渲染区域，内部元素的布局不会影响外部。常用于清除浮动（包裹浮动子元素，避免高度塌陷）和防止 margin 塌陷（不同 BFC 间的垂直 margin 不会合并）。`display: flow-root` 是最推荐的创建方式，无副作用。
 
 | 方式 | 副作用 |
 |---|---|
@@ -28,8 +79,6 @@ description: BFC、层叠上下文、CSS 动画、合成层、响应式布局
 | `float: left/right` | 脱离文档流 |
 | `position: absolute/fixed` | 脱离文档流 |
 | `display: flex/grid` | 改变布局模型 |
-
-## BFC 应用
 
 ```html
 <!-- 清除浮动（高度塌陷） -->
@@ -43,7 +92,29 @@ description: BFC、层叠上下文、CSS 动画、合成层、响应式布局
 <!-- 不同 BFC 中 margin 不合并，间距 = 50px -->
 ```
 
-## CSS 动画性能
+### 层叠上下文
+
+`z-index` 只在定位元素（`position` 不为 `static`）或 flex/grid 子项上生效，且必须先形成层叠上下文。触发条件包括：`position: relative/absolute/fixed/sticky` + `z-index` 非 `auto`、`opacity < 1`、`transform/filter/perspective` 非 `none`、`will-change` 指定上述属性等。同一层叠上下文中，`z-index` 大的在上；不同层叠上下文中，先比较父级的层叠顺序。
+
+```
+层叠顺序（从低到高）：
+  background/border → 负 z-index → block 块级盒子 → float 浮动盒子
+  → inline/inline-block 行内盒子 → z-index: auto / 0
+  → 正 z-index
+```
+
+```css
+/* z-index 生效示例 */
+.parent { position: relative; z-index: 1; }   /* 创建层叠上下文 */
+.child  { position: absolute; z-index: 999; }  /* 在 parent 内有效 */
+
+/* 常见陷阱：opacity 创建新的层叠上下文 */
+.fade { opacity: 0.99; }  /* 虽然没设 z-index，但内部子元素的 z-index 被隔离 */
+```
+
+### CSS 动画性能
+
+`transform` 和 `opacity` 的动画在合成线程执行，不触发 Layout（重排）和 Paint（重绘），性能最优。`left/top/width/height` 等布局属性每次变化都会触发布局重计算，应避免在动画中使用。配合 `will-change` 提前将元素提升为合成层，可减少动画首帧的创建开销。
 
 ```css
 /* ❌ 触发重排（布局改变） */
@@ -54,9 +125,86 @@ description: BFC、层叠上下文、CSS 动画、合成层、响应式布局
 .animated { will-change: transform; animation: good 1s; }
 ```
 
-## `clamp()` 流式排版
+| 属性类型 | 触发阶段 | 性能 |
+|---|---|---|
+| `left / top / width / height` | Layout → Paint → Composite | ❌ 差 |
+| `color / background / box-shadow` | Paint → Composite | ⚠️ 一般 |
+| `transform / opacity` | Composite only | ✅ 最佳 |
+
+### 响应式
+
+响应式布局的核心工具链：媒体查询根据视口宽度切换样式；容器查询（`@container`）根据父容器尺寸而非视口变化，更适合组件级自适应；`clamp()` 实现流式尺寸，一个声明即可覆盖最小、理想、最大值，无需多断点干预。
 
 ```css
-font-size: clamp(1rem, 2.5vw, 2rem);   /* 最小1rem，最大2rem，中间跟随视口 */
+/* 媒体查询 */
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+}
+
+/* 容器查询 */
+.card-wrapper { container-type: inline-size; }
+@container (min-width: 400px) {
+  .card { flex-direction: row; }
+}
+
+/* clamp() 流式排版 */
+font-size: clamp(1rem, 2.5vw, 2rem);   /* 最小 1rem，最大 2rem，中间跟随视口 */
 padding: clamp(1rem, 5%, 3rem);
+```
+
+### contain
+
+`contain` 属性告诉浏览器元素的内部变化不会影响外部，从而跳过不必要的布局/绘制计算，实现性能隔离。`contain: layout` 是 BFC 的强化版，`contain: paint` 限制绘制边界，`content-visibility: auto` 则自动跳过屏幕外元素的渲染（懒渲染），适合长列表优化。
+
+```css
+contain: layout;         /* 内部布局不影响外部（BFC 的强化版） */
+contain: paint;          /* 后代不绘制在元素边界外 */
+contain: layout paint;   /* 组合使用，适合长列表中的单项隔离 */
+content-visibility: auto /* 跳过屏幕外元素的渲染（≈懒渲染） */
+```
+
+| 值 | 隔离范围 |
+|---|---|
+| `layout` | 元素内部布局变化不影响外部几何 |
+| `paint` | 后代超出边界部分不绘制 |
+| `size` | 元素尺寸不依赖子元素（需显式指定宽高） |
+| `style` | `counter` / `quotes` 等样式不穿透 |
+
+## 深入理解 ⭐
+
+### 合成层（Compositor Layers）
+
+浏览器渲染的最后一步——合成线程将多个图层合并输出到屏幕。
+
+**哪些属性在合成线程执行（不触发 Layout/Paint）**：
+- `transform`（translate / scale / rotate）
+- `opacity`
+- `filter`（部分）
+
+**创建合成层的触发条件**：
+1. 3D transform：`transform: translateZ(0)`
+2. `will-change: transform` / `will-change: opacity`
+3. `<video>` / `<canvas>` / `<iframe>` 元素
+4. `position: fixed`（部分浏览器）
+
+**注意**：合成层过多 → 内存暴涨（每个层≈位图副本）→ 反而性能下降（层爆炸）
+
+### CSS Houdini（了解即可）
+
+CSS Houdini 允许开发者用 JS 编写 CSS 引擎内部逻辑：
+
+| API | 用途 |
+|---|---|
+| Paint API | 自定义 `background-image` 绘制 |
+| Layout API | 自定义布局算法 |
+| Properties & Values API | 注册带类型的 CSS 自定义属性 |
+| Animation Worklet | 合成线程运行动画（不阻塞主线程） |
+
+```css
+/* 注册带类型的 CSS 变量（支持动画） */
+@property --my-color {
+  syntax: '<color>';
+  initial-value: #000;
+  inherits: false;
+}
 ```
