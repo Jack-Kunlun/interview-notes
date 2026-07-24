@@ -138,14 +138,14 @@ export default defineConfig({
 
     // 页面底部
     editLink: {
-      pattern: 'https://github.com/YOUR_USERNAME/interview-notes/edit/main/docs/:path',
+      pattern: 'https://github.com/Jack-Kunlun/interview-notes/edit/main/docs/:path',
       text: '在 GitHub 上编辑此页'
     },
 
     lastUpdated: { text: '最后更新' },
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/YOUR_USERNAME/interview-notes' }
+      { icon: 'github', link: 'https://github.com/Jack-Kunlun/interview-notes' }
     ],
 
     footer: {
