@@ -200,5 +200,11 @@ export default defineConfig({
       label: '本页目录',
       level: [2, 3]
     },
-  }
+  },
+
+  vite: {
+    build: {
+      chunkSizeWarningLimit: 1000,
+    },
+  },
 })
