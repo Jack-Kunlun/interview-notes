@@ -24,7 +24,7 @@ description: 盒模型、Flex/Grid 布局、CSS 动画、原子化 CSS、工程�
 
 ## 二、Flex 布局
 
-Flex 是一维弹性布局模型，核心是三件套：`flex-grow`（放大比例）、`flex-shrink`（收缩比例）、`flex-basis`（初始尺寸）。
+Flex 是一维弹性布局模型，核心是三个关键属性：
 
 ### 2.1 flex-grow / flex-shrink / flex-basis
 
@@ -81,9 +81,6 @@ Flex 是一维弹性布局模型，核心是三件套：`flex-grow`（放大比�
 .holy-right   { flex: 0 0 300px; order: 3; }
 </style>
 ```
-
-> **踩过的坑**：Flex 子项的默认 `min-height: auto` 会阻止缩小到内容高度以下。做后台菜单时用 `flex: 1` 让内容区自适应，但内容溢出时不触发滚动条而是撑开整个页面。修复：给 flex 子项加上 `min-height: 0` 或 `overflow: auto`。
-
 ---
 
 ## 三、Grid 布局

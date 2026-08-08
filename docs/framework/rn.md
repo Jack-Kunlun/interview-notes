@@ -56,7 +56,7 @@ const sub = emitter.addListener('NetworkChanged', (e) => {
 // 组件卸载时 sub.remove()，防止内存泄漏
 ```
 
-> **面试要点**：Bridge 瓶颈三方面——JSON 序列化开销、异步延迟、单队列堵车。高频交互（onScroll 每帧回调）容易丢帧。新架构 JSI 让 JS 直接调 C++ 方法，同步调用、零序列化，从根本上解决。
+> Bridge 瓶颈三方面——JSON 序列化开销、异步延迟、单队列堵车。高频交互（onScroll 每帧回调）容易丢帧。新架构 JSI 让 JS 直接调 C++ 方法，同步调用、零序列化，从根本上解决。
 
 ## 二、热更新 CodePush
 

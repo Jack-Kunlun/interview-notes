@@ -33,13 +33,6 @@ BFC 是一个独立的渲染区域，内部元素的布局不会影响外部。�
 <div style="display: flow-root"><p style="margin-top: 30px">段落2</p></div>
 ```
 
-### 💬 面试追问
-
-- **"哪些属性可以触发 BFC？"** → `overflow` 非 `visible`、`float` 非 `none`、`position: absolute/fixed`、`display: inline-block / flex / grid / flow-root / table-cell / table-caption`、`contain: layout`。最容易漏的是 `display: table-cell` 和 `table-caption`。
-- **"BFC 能解决父子元素间的 margin 塌陷吗？"** → 可以。给父元素加 `display: flow-root` 或 `overflow: hidden`；或者把父元素的 margin 换成 padding / border。
-
-> **踩过的坑**：用 `overflow: hidden` 清浮动导致下拉菜单被裁剪。修复：换成 `display: flow-root`，或将弹出层用 Portal / `position: fixed` 渲染到 body 下。
-
 ---
 
 ## 二、层叠上下文
@@ -59,15 +52,6 @@ BFC 是一个独立的渲染区域，内部元素的布局不会影响外部。�
   background/border → 负 z-index → block 块级盒子 → float 浮动盒子
   → inline/inline-block → z-index: auto / 0 → 正 z-index
 ```
-
-### 💬 面试追问
-
-- **"为什么加了 opacity 后 z-index 不生效了？"** → 因为 `opacity < 1` 会创建新的层叠上下文，内部子元素的 `z-index` 被隔离在这个上下文内，和外部的元素不再直接比较。
-- **"z-index: 9999 也没用，怎么排查？"** → 往上逐级检查每个祖先是否创建了层叠上下文（position + z-index、opacity、transform、filter），找到最近的那个层叠上下文根。问题通常是祖先的 z-index 低于竞争元素的祖先。
-
-> **踩过的坑**：弹窗遮罩加了 `opacity` 过渡动画，结果弹窗内容永远在某个 `z-index: 10` 的侧边栏下面。根因是遮罩的 `opacity: 0` → `1` 过渡创建了层叠上下文而遮罩本身没有 `z-index`。**修复**：给遮罩同时声明 `z-index`，或用 `background: rgba(0,0,0,0.5)` 替代 opacity 做半透明。
->
-> **最佳实践**：用 CSS 变量集中定义层级体系——`--z-base / --z-dropdown / --z-sticky / --z-modal / --z-toast`，避免散落各处的魔法数字。
 
 ---
 
@@ -97,10 +81,6 @@ BFC 是一个独立的渲染区域，内部元素的布局不会影响外部。�
 
 > **正确用法**：只在动画开始前通过 JS 动态添加，动画结束后移除；或者只在确实有性能瓶颈的元素上使用。大多数情况下让浏览器在动画发生时自动提升为合成层完全够用。
 >
-> **踩过的坑**：长列表页面给所有卡片加了 `will-change: transform`，页面打开不久移动端 Safari 直接白屏崩溃——每个卡片都创建了独立合成层（几百个），GPU 显存从 200MB 飙升到 2GB+。修复：只在 hover 时动态添加 `will-change`，transition 结束后移除。
->
-> **requestAnimationFrame 和 CSS 动画哪个更好？** CSS 动画适合简单声明式过渡，浏览器可以对其优化（合成线程执行）；rAF 适合需要 JS 参与每一帧计算的场景（跟随鼠标的视差效果、canvas 动画）。复杂动画用 JS 驱动 `transform` 属性同样可以在合成线程执行。
-
 ---
 
 ## 四、合成层（Compositor Layers）
@@ -126,10 +106,6 @@ BFC 是一个独立的渲染区域，内部元素的布局不会影响外部。�
 
 > **translateZ(0) 还能用吗？** 能用但不如 `will-change: transform` 语义明确。`translateZ(0)` 本质是欺骗浏览器创建 3D 合成层，浏览器不知道你的意图；`will-change` 则明确声明，浏览器可以更智能地管理资源。但页面合成层已经很多时，两者都别滥用。
 >
-> **踩过的坑**：页面嵌入了 30 个 iframe 卡片，每个 iframe 自动创建合成层，加上卡片上的 `will-change` 和 `box-shadow`，Layers 面板显示 200+ 层，低端安卓机页面直接卡死。修复：iframe 懒加载（IntersectionObserver + `loading="lazy"`），移除不必要的 will-change。
->
-> **排查工具**：Layers 面板看"层为什么产生"（Compositing Reasons），Performance 面板看"层创建花费多长时间"和帧时间线。先在 Performance 中确认掉帧区间，再到 Layers 中排查该区间内层数量暴增的原因。
-
 ---
 
 ## 五、响应式
@@ -152,13 +128,6 @@ font-size: clamp(1rem, 2.5vw, 2rem);
 padding: clamp(1rem, 5%, 3rem);
 ```
 
-### 💬 面试追问
-
-- **"移动端 1px 边框问题怎么解决？"** → Retina 屏的 1 CSS px = 2~3 物理像素，`border: 1px` 实际渲染了 2~3px 宽。解决方案：`transform: scaleY(0.5)` + `transform-origin: 0 0`，或 postcss 插件自动转换。
-- **"媒体查询和容器查询什么时候用哪个？"** → 页面级布局用媒体查询（视口变化），组件内部自适应用容器查询（容器尺寸变化）。
-
-> **踩过的坑**：`@media (min-width: 768px)` 和移动端优先的样式覆盖顺序搞反。移动端优先应该 `min-width` 从小到大叠加（基础样式=移动端，768+=平板，1024+=桌面），而不是用 `max-width` 从大到小回退。修复：统一 `min-width` 递增策略，每个断点只追加需要的属性。
-
 ---
 
 ## 六、contain
@@ -178,15 +147,6 @@ content-visibility: auto /* 跳过屏幕外元素的渲染（≈懒渲染） */
 | `paint` | 后代超出边界部分不绘制 |
 | `size` | 元素尺寸不依赖子元素（需显式指定宽高） |
 | `style` | `counter` / `quotes` 等样式不穿透 |
-
-### 💬 面试追问
-
-- **"content-visibility: auto 有什么副作用？"** → ① 元素高度塌陷为 0，需配合 `contain-intrinsic-size` 预估占位高度否则滚动条跳动；② 屏幕外元素的 Ctrl+F 搜不到；③ JS 访问 `getBoundingClientRect` 可能返回 0。
-- **"contain 和 BFC 有什么区别？"** → BFC 只隔离浮动和 margin，`contain: layout` 在此基础上还保证内部布局变化完全不影响外部，并且阻止外部布局影响内部。关系：BFC ⊆ contain: layout ⊆ contain: layout paint。
-
-> **踩过的坑**：给列表项加了 `contain: size` 但忘了设宽高，所有项目缩成 0×0 不可见。`contain: size` 告诉浏览器"此元素尺寸不依赖子元素"，但没给显式宽高时浏览器认为是 0。修复：改 `contain: layout paint` 不加 size，或同时声明明确的宽高。
->
-> **项目选型**：`content-visibility: auto` vs 虚拟列表——简单长列表（几百条、DOM 不复杂）直接用 content-visibility，零 JS 成本；超长列表（万级以上）用虚拟列表彻底控制 DOM 数量。两者可组合使用。
 
 ---
 
@@ -286,5 +246,3 @@ html { font-size: calc(100vw / 1920 * 10); }
 ```
 
 配合 `postcss-pxtorem` 自动将 px 转为 rem，开发时继续写 px，构建后自动换算。
-
-> **项目选型**：固定比例大屏（数据看板、驾驶舱）优先 scale，设计稿 100% 还原；内容型页面用 vw+rem 或 clamp 流式，不需要像素级对齐且文字可读性更好。

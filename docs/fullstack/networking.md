@@ -36,8 +36,6 @@ HTTP 是基于 TCP 的应用层协议，采用请求-响应模型。一次完整
 | 4xx | 客户端错误 | `400 Bad Request`、`401 Unauthorized`、`403 Forbidden`、`404 Not Found`、`429 Too Many Requests` |
 | 5xx | 服务端错误 | `500 Internal Server Error`、`502 Bad Gateway`、`503 Service Unavailable`、`504 Gateway Timeout` |
 
-> **💬 面试深度**——301 和 302 的区别：301 永久重定向，浏览器会缓存重定向结果，下次直接跳转（搜索引擎会更新索引到新 URL）；302 临时重定向，浏览器每次都会重新请求原地址。`304 Not Modified` 不是重定向——它告诉浏览器"资源没变，用你的本地缓存吧"，是协商缓存的核心状态码。
-
 ### 1.3 HTTP 版本演进
 
 | | HTTP/1.1 | HTTP/2 | HTTP/3 |
@@ -50,8 +48,6 @@ HTTP 是基于 TCP 的应用层协议，采用请求-响应模型。一次完整
 | 服务器推送 | ❌ | ✅（Server Push，已废弃） | ❌（改用 103 Early Hints） |
 
 **关键区别**：HTTP/1.1 同一域名最多 6 个并发 TCP 连接，且请求-响应必须按序返回（队头阻塞）。HTTP/2 引入多路复用——一个 TCP 连接上同时传输多个 Stream，每个 Stream 独立不互相阻塞。HTTP/3 更进一步：把传输层换成 QUIC（基于 UDP），丢包只影响单个流，不像 TCP 阻塞所有流。
-
-> **💬 面试深度**——HTTP/2 的 Server Push 曾被寄予厚望（服务端可以主动推送 CSS/JS），但实践中常推送浏览器已有缓存的资源，反而浪费带宽。Chrome 106+ 已移除 Server Push，改为 103 Early Hints（只推送资源 URL，是否加载由浏览器决定）。
 
 ---
 
@@ -86,8 +82,6 @@ Client          Server                 Client          Server
 
 - **三次握手**：确认双方的收发能力。SYN 洪泛攻击就是只发 SYN 不回应 ACK，占用服务端半连接队列。
 - **四次挥手**：TCP 全双工——双方都需要独立关闭自己方向的通道，所以 FIN 和 ACK 各需要两轮。
-
-> **💬 面试深度**——为什么握手是三次而不是两次？如果只有两次，服务端收到 SYN 后直接进入 ESTABLISHED 状态分配资源，但客户端可能已经放弃连接，服务端资源就浪费了。第三次 ACK 让服务端确认客户端真的在线。
 
 ---
 
@@ -145,10 +139,6 @@ Client                                    Server
 | 服务端证书 | 绑定域名与公钥，由中间 CA 签发 |
 | 证书透明度（CT） | CA 必须将签发记录提交到公共 CT Log，浏览器要求证书附带 SCT 凭证 |
 
-> **💬 面试深度**——中间人攻击（MITM）HTTPS 怎么防？攻击者伪造证书时，浏览器验证证书链会发现签名不匹配（攻击者没有 CA 私钥），直接显示 `NET::ERR_CERT_AUTHORITY_INVALID` 阻断连接。ECDHE 密钥协商提供了**前向安全性**——即使服务端私钥未来泄露，历史会话也无法被解密。
-
-> **踩坑实录**——内部测试环境用自签名证书，后端 curl 能通但浏览器报 `ERR_CERT_AUTHORITY_INVALID`。修复：用 `mkcert` 生成本地受信证书，`mkcert -install` 将 CA 根证书安装到系统信任库。
-
 ---
 
 ## 四、WebSocket
@@ -191,8 +181,6 @@ ws.onerror = (error) => console.error('错误:', error)
 
 // readyState: 0=CONNECTING, 1=OPEN, 2=CLOSING, 3=CLOSED
 ```
-
-> **踩坑实录**——`ws.onopen` 之前直接调用 `ws.send()`，浏览器不抛异常，消息静默丢失。根因是 `new WebSocket(url)` 是异步握手，构造函数返回时连接并未建立。修复：发消息前检查 `readyState === WebSocket.OPEN`，否则入 pendingQueue 在 `onopen` 中 flush。
 
 ### 4.3 心跳机制
 
@@ -309,8 +297,6 @@ class RobustWebSocket {
 }
 ```
 
-> **💬 面试深度**——WebSocket 断线处理三件事联动：① 心跳检测断线（ping/pong 超时 10s 判定）；② 指数退避重连（1s→2s→4s→...→30s 封顶，加随机抖动防雷群效应）；③ 业务层幂等——每条消息带唯一 ID，断线期间消息暂存 pendingQueue 重连后批量 flush。
-
 ---
 
 ## 五、Socket.io
@@ -350,10 +336,6 @@ const socket = io('http://localhost:3000/chat')
 socket.emit('join', 'room-42')
 ```
 
-> **💬 面试深度**——Socket.io 和原生 WebSocket 不能互通。Socket.io 使用 engine.io 自定义协议：先发 HTTP 长轮询建立 session，再尝试升级到 WebSocket。原生 WebSocket 客户端连 Socket.io 服务端会握手失败。Rooms 是内存中的 `Map<room, Set<socketId>>`，不持久化，跨节点需配合 Redis 适配器。
-
-> **踩坑实录**——生产环境 Socket.io 一直工作在 polling 模式。排查发现 nginx 反代没有正确处理 WebSocket Upgrade——`Upgrade` 和 `Connection` 头被丢弃，engine.io 升级失败后静默降级为 polling。修复：nginx 配置加 `proxy_set_header Upgrade $http_upgrade;` 和 `proxy_set_header Connection "upgrade";`。
-
 ---
 
 ## 六、长轮询（Long Polling）
@@ -384,8 +366,6 @@ async function longPoll(url) {
 | 延迟 | 毫秒级 | 取决于轮询间隔 |
 | 服务端压力 | 低（事件驱动） | 高（大量 hold 住的长连接） |
 | 适用场景 | 聊天、协作、游戏 | 简单通知、老环境兼容 |
-
-> **💬 面试深度**——Short Polling 是客户端固定间隔发请求不管有没有新数据，Long Polling 是服务端 hold 住直到有数据或超时。Long Polling 的"实时感"更接近推送，但服务端资源消耗大。现在 Long Polling 更多作为 WebSocket/SSE 的 fallback 存在。
 
 ---
 
@@ -442,8 +422,6 @@ data: {"symbol":"BTC","value":420000}
 | HTTP/2 多路复用 | 天然兼容 | 需降级到 HTTP/1.1 |
 | 适用范围 | 通知、feed 流、股价 | 聊天、协作编辑、游戏 |
 
-> **💬 面试深度**——SSE 最大优势是简单：`new EventSource(url)` 三行代码，自动重连、自动解析事件类型、自动 `Last-Event-ID` 断点续传。缺点是不能发消息（客户端需要发数据时走另一个 HTTP POST）。HTTP/2 下 SSE 多路复用不占额外连接。鉴权问题：`EventSource` 不支持自定义 Header，需在 URL 中带 token 或用短效 ticket。
-
 ---
 
 ## 八、方案对比与选型
@@ -479,8 +457,6 @@ data: {"symbol":"BTC","value":420000}
 | 弱网环境（移动端、高丢包） | HTTP/3（QUIC，丢包不阻塞） |
 | 内网/可控环境 | HTTP/2 即可，兼容性最好 |
 | 实时推送 | SSE 走 HTTP/2 多路复用，WebSocket 走独立通道 |
-
-> **💬 面试深度**——实际项目通常不是四选一，而是分层：主通道用 WebSocket/Socket.io 保证实时性，降级通道用 Long Polling 保证可用性。更常见的组合：WebSocket 做双向信令（加入房间、发送消息），SSE 做独立单向数据流（行情推送）——两个通道互不影响。
 
 ---
 

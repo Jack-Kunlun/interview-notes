@@ -43,7 +43,7 @@ class TaroElement {
 }
 ```
 
-> **面试要点**：Taro 3 比原生小程序慢在哪？多了一层 Taro DOM 适配 + setData 序列化开销。每次更新都要把虚拟 DOM diff 结果序列化为 setData 数据路径，再跨线程传到视图层。大列表场景不用虚拟列表时可能慢 3-5 倍。
+> Taro 3 比原生小程序慢在哪？多了一层 Taro DOM 适配 + setData 序列化开销。每次更新都要把虚拟 DOM diff 结果序列化为 setData 数据路径，再跨线程传到视图层。大列表场景不用虚拟列表时可能慢 3-5 倍。
 
 ## 二、跨端适配
 
@@ -158,7 +158,7 @@ Taro DOM 运行在逻辑层（JS 线程），每次更新都需 setData 序列�
 
 **Q3: Taro 线上白屏怎么排查？**
 
-三步走：① 小程序性能面板看 setData 是否超 256KB（单次警告阈值）；② React DevTools / why-did-you-render 抓重复渲染；③ `Taro.getLogManager()` 捞日志 + 真机 PerfDog 看内存曲线。
+分三步：
 
 **Q4: Taro ScrollView 常见坑？**
 

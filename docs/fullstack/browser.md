@@ -36,10 +36,6 @@ description: 渲染流程、Event Loop、缓存、V8 GC、安全、跨域、Serv
 
 **优化目标**：尽量让动画和交互只触发 Composite（多用 `transform` / `opacity`），避免在 JS 中频繁读写布局属性导致强制同步布局。
 
-> **💬 面试深度**——网页动画性能优化的核心就是把工作推到 Composite 阶段。用 `transform` 和 `opacity` 做动画，因为这两个属性只触发 Composite，由 GPU 合成线程独立完成矩阵变换，完全不占用主线程。过度使用 `will-change` 或 `translateZ(0)` 强制提升为合成层会导致**层爆炸**（Layer Explosion）——每个图层独占一块 GPU 纹理，移动端图层超过几百个时 GPU 内存耗尽。Chrome DevTools → Layers 面板可直观看到图层数量和内存占用。
-
-> **踩坑实录**——移动端用 JS 定时器逐帧修改 `left` 值做横向滚动 Banner，低端机上每帧 Layout→Paint→Composite 全走一遍，帧率掉到 15fps。换成 `transform: translateX()` + CSS `transition` 后，合成线程独立处理矩阵变换，帧率回到 60fps，CPU 占用从 45% 降到 3%。
-
 ### 1.3 强制同步布局
 
 JS 先写布局属性再立即读（如修改 `style.width` 后马上读 `offsetHeight`），浏览器被迫在当前帧同步执行 Layout。Chrome DevTools Performance 面板会标红 "Forced reflow"。
@@ -53,8 +49,6 @@ const height = element.offsetHeight  // 强制浏览器立即 Layout
 const height = element.offsetHeight  // 先读
 element.style.width = '100px'        // 后写
 ```
-
-> **踩坑实录**——列表滚动组件中用 `element.style.top` 逐项偏移定位，每次赋值后读取 `scrollTop` 判断边界触发了强制同步布局——Performance 面板显示每次滚动帧耗时 30ms+。改为 `transform: translateY()` 并将边界值缓存到变量后，帧耗时降到 2ms 以内。
 
 ---
 
@@ -74,10 +68,6 @@ console.log('4')                              // 同步
 // 输出：1 4 3 2
 ```
 
-> **💬 面试深度**——`requestAnimationFrame` 在微任务清空之后、Layout/Paint 之前执行，属于渲染阶段，不算宏任务也不算微任务。Node.js 的 Event Loop 基于 libuv，有 6 个阶段（timers → pending callbacks → idle/prepare → poll → check → close callbacks），每个阶段执行完后再清空 `process.nextTick` 和微任务。
-
-> **踩坑实录**——循环中递归调用 `Promise.resolve().then(() => { doWork(); /* 继续递归 */ })`，以为微任务清完就会渲染——实际上微任务队列被无限追加新任务，渲染永远得不到执行，页面直接卡死白屏。改为 `setTimeout(doWork, 0)` 让每轮事件循环只执行一次，渲染间隙恢复。
-
 ### 2.2 requestAnimationFrame vs requestIdleCallback
 
 | | rAF | rIC |
@@ -86,10 +76,6 @@ console.log('4')                              // 同步
 | 帧内位置 | 约 16.6ms 预算的前半段 | 帧剩余时间 |
 | 典型场景 | 动画、DOM 批量读写 | 日志上报、预加载 |
 | 兼容性 | 全部现代浏览器 | 部分浏览器（Safari 不支持） |
-
-> **💬 面试深度**——rAF 保证每帧执行（只要页面可见），rIC 不保证——如果帧一直很忙，rIC 的回调可能永远不执行，必须传 `{ timeout }` 做兜底。React 18 的 Scheduler 不用 rIC 而用 `MessageChannel`，正是因为 rIC 兼容性差且空闲优先级太低。
-
-> **踩坑实录**——用 `setInterval(fn, 16)` 做 Canvas 动画，在 144Hz 屏幕上帧率被锁在 60fps（`setInterval` 不与显示器刷新率同步）。换 `requestAnimationFrame` 后自动匹配 144Hz 刷新率，动画丝滑。
 
 ---
 
@@ -112,10 +98,6 @@ console.log('4')                              // 同步
 | JS/CSS（带哈希） | `Cache-Control: max-age=31536000`（一年强缓存） | 文件名变了自动绕过缓存 |
 | 图片/字体 | `max-age=86400` 或更长 | 变更频率低 |
 
-> **💬 面试深度**——`no-cache` 并非"不缓存"，而是"可以用缓存但每次必须先向服务器验证"（走协商缓存）；`no-store` 才是"完全不缓存"。memory cache 存在内存中进程退出即消失（缓存图片/小资源），disk cache 存硬盘持久化（缓存 JS/CSS/字体）。生产环境推荐 `Cache-Control` + `ETag` 组合，静态资源用内容哈希命名 + 长 max-age。
-
-> **踩坑实录**——将 `index.html` 也设了 `max-age=86400` 强缓存，发版后用户看到旧 HTML 引用不到新 JS 文件。修复：HTML 始终用 `no-cache`，只有带哈希的静态资源才用长强缓存。
-
 ---
 
 ## 四、V8 引擎与内存
@@ -131,10 +113,6 @@ V8 将堆内存分为新生代和老生代：
 
 - **新生代**：使用 Scavenge 复制算法——将存活对象从 From 空间复制到 To 空间，然后交换角色，未被复制的直接回收。存活够久的对象晋升到老生代。
 - **老生代**：Mark-Sweep（标记清除）回收不可达对象，Mark-Compact（标记整理）解决内存碎片。引入**增量标记**（Incremental Marking）将标记过程拆分成小步与 JS 交替执行，避免长时间 STW。
-
-> **💬 面试深度**——新生代中绝大多数对象朝生夕死（存活率通常低于 10%），Scavenge 只复制存活对象，存活越少越快；Mark-Sweep 需要先遍历整个堆标记再清除，在大量短命对象场景效率反而不如 Scavenge。增量标记期间新创建的对象通过写屏障（Write Barrier）标记为活跃，防止被误回收。
-
-> **踩坑实录**——Node.js 服务频繁创建 2MB 的 Buffer（每次请求一个），这些大对象直接进入老生代触发 Full GC，每次 Mark-Compact STW 耗时 50-80ms，P99 延迟恶化为 300ms+。改为对象池复用 Buffer，老生代 GC 频率从每分钟 5 次降到每小时 1 次。
 
 ### 4.2 内存泄漏排查
 
@@ -158,10 +136,6 @@ useEffect(() => {
   return () => clearInterval(id)
 }, [])
 ```
-
-> **💬 面试深度**——WeakMap 的键是弱引用，键被 GC 回收后值也会自动释放，适合做 DOM 节点关联的元数据存储。WeakRef 允许持有"可能被回收"的引用，但不推荐用于业务逻辑——GC 时机不确定，`deref()` 可能突然返回 `undefined`。
-
-> **踩坑实录**——SPA 中某页面 `mounted` 里加了 `window.addEventListener('resize', handler)`，`unmounted` 时忘了 `removeEventListener`。用户来回切换页面 5 次后，Heap Snapshot 显示 5 个 handler 引用未被回收，`resize` 事件触发时所有 handler 一起跑，页面卡顿明显。
 
 ---
 
@@ -295,10 +269,6 @@ window.addEventListener('message', (event) => {
 | **Nginx 反向代理** | 全部 | ✅（Nginx 配置） | ✅ | 生产环境 | 生产部署 |
 | **PostMessage** | 不适用 | ❌ | ❌ | 浏览器 | iframe/窗口通信 |
 
-> **💬 面试深度**——带 Cookie 的 CORS 必须三方对齐：前端 `xhr.withCredentials = true`、后端 `Access-Control-Allow-Credentials: true`、且 `Access-Control-Allow-Origin` 必须明确指定域名不能用 `*`。生产环境推荐 Nginx 反向代理统一处理跨域——对浏览器来说所有请求同源，完全避开 OPTIONS 预检开销。
-
-> **踩坑实录**——后端配了 `Access-Control-Allow-Origin: *`，前端用 `axios` 发 `withCredentials: true` 请求，浏览器直接报 CORS error——因为 `*` 与 `withCredentials` 互斥。
-
 ---
 
 ## 七、进阶主题
@@ -315,8 +285,6 @@ install → waiting → activate → fetch/message → redundant(销毁)
 
 **PWA 核心三件套**：SW + Web App Manifest + HTTPS
 
-> **💬 面试深度**——SW 的缓存策略：Cache First（带哈希的静态资源）、Network First（API，失败回退缓存）、Stale-While-Revalidate（先用缓存同时后台更新）。默认浏览器每 24h 自动检查 SW 文件，用 `self.skipWaiting()` + `clients.claim()` 可实现立即生效。
-
 ### 7.2 前端性能监控指标
 
 | 指标 | 含义 | 及格线 | 核心 Web Vitals |
@@ -327,8 +295,6 @@ install → waiting → activate → fetch/message → redundant(销毁)
 | **CLS** | 累积布局偏移 | **< 0.1** | ✅ |
 | TTI | 可交互时间 | < 3.8s | |
 | TBT | 总阻塞时间 | < 200ms | |
-
-> **💬 面试深度**——LCP 是"用户看到主要内容"的时刻，跟体验直接相关；CLS 衡量视觉稳定性（图片无尺寸、动态插入广告是 CLS 杀手）；FID → INP（Interaction to Next Paint）是 2024 年 3 月替代 FID 的新指标，衡量整个页面生命周期内所有交互的延迟。
 
 ---
 

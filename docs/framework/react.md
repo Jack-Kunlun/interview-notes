@@ -24,8 +24,6 @@ React.createElement('div', { className: 'box' },
 { type: 'div', props: { className: 'box', children: [...] } }
 ```
 
-> **💬 面试追问**：React 17 引入新 JSX 转换，编译为 `import { jsx } from 'react/jsx-runtime'`，不再需要手动 `import React from 'react'`，编译产物更小。虚拟 DOM 的价值在于声明式编程体验和跨平台能力（React Native），而非绝对的性能优势——简单场景下直接操作 DOM 反而更快。
-
 ---
 
 ## 二、Hooks 基础
@@ -46,7 +44,7 @@ useEffect(() => {
 }, [id]) // 依赖数组控制执行时机
 ```
 
-> **💬 踩坑**：`useEffect` 中忘记清理定时器/订阅，组件卸载后仍在执行副作用并报 `Can't perform a React state update on an unmounted component`。修复：返回清理函数。
+> 别忘清理副作用。`useEffect` 里开了定时器或订阅，组件卸载后还在跑，控制台爆 `Can't perform a React state update on an unmounted component`——返回清理函数就行。
 
 ### 2.3 `useRef` — 跨渲染周期持有引用
 
@@ -81,7 +79,7 @@ function ThemedButton() {
 }
 ```
 
-> **💬 性能陷阱**：Context value 变化时所有消费者都重渲染，即使只用了 value 中的某个字段。优化：按更新频率拆分 Context（`ThemeValueContext` + `ThemeActionContext`），或用 `useMemo` 包裹 value。
+> Context value 一变，所有消费者都重渲染——哪怕只用了 value 里的一个字段。解法：按更新频率拆 Context（`ThemeValueContext` + `ThemeActionContext`），或用 `useMemo` 包住 value。
 
 ### 2.5 `useReducer` — 复杂状态逻辑
 
@@ -113,7 +111,7 @@ function Counter() {
 | 可测试性 | 逻辑分散在组件中 | reducer 是纯函数，单测友好 |
 | 典型场景 | 表单输入、开关 | 购物车、多步骤表单、复杂筛选 |
 
-> **💬 追问**：`useReducer` 为什么能避免闭包陷阱？dispatch 引用稳定，reducer 接收的是最新 state 快照而非闭包捕获的旧值。`useState` 本质是预置了 reducer 为"直接替换"的 `useReducer`。
+> `useReducer` 为什么没闭包陷阱？dispatch 引用稳定，reducer 收的是最新 state 快照，不是闭包抓的旧值。其实 `useState` 本质上就是个预置了"直接替换" reducer 的 `useReducer`。
 
 ---
 
@@ -138,7 +136,7 @@ const sorted = useMemo(() => [...list].sort(cmp), [list])
 const handleClick = useCallback(() => doSomething(count), [count])
 ```
 
-> **💬 关键认知**：三者均有额外开销（内存分配 + 依赖对比）。简单组件用 `memo` 反而浪费，`useCallback(fn, deps)` 等价于 `useMemo(() => fn, deps)`。
+> 三者都有额外开销——内存分配 + 依赖对比。简单组件套 `memo` 反而更慢，`useCallback(fn, deps)` 本质上就是 `useMemo(() => fn, deps)`。
 
 ### 3.2 闭包陷阱与解决方案
 
@@ -161,7 +159,7 @@ useEffect(() => { /* ... */ }, [count])
 // ✅ 解法三：useReducer（dispatch 稳定 + reducer 收最新 state）
 ```
 
-> **💬 选型**：需读取最新值但不触发重新执行副作用时用 `useRef`（轮询、WebSocket 回调）；需副作用随值变化重建时用依赖数组。
+> 读最新值但不重新执行副作用 → `useRef`（轮询、WebSocket 回调）；需副作用随值变化重建 → 老实加依赖数组。
 
 ---
 
@@ -176,7 +174,7 @@ useEffect(() => { /* ... */ }, [count])
 | Zustand | 中小型应用 | 极简 API、TS 友好、组件级订阅 |
 | Redux Toolkit | 大型协作项目 | 规范性强、中间件生态、时间旅行 |
 
-> **💬 追问**：什么时候用 Context 什么时候用状态管理库？Context 适合读多写少的全局配置（主题、语言）；状态管理库适合读写频繁的业务数据（购物车、列表筛选），因为 Zustand/Redux 基于订阅实现精准渲染，不会像 Context 那样大范围重渲染。
+> Context 还是状态管理库？Context 适合读多写少的全局配置（主题、语言）；状态管理库适合读写频繁的业务数据（购物车、列表筛选），因为 Zustand/Redux 基于订阅精准渲染，不会像 Context 全员重渲。
 
 ### 4.2 `forwardRef` + `useImperativeHandle`
 
@@ -252,7 +250,7 @@ React Diff 基于三个假设将复杂度从 O(n³) 降到 O(n)：
 {list.map(item => <Item key={item.id} {...item} />)}
 ```
 
-> **💬 追问**：为什么 Vue 和 React 的 Diff 都是 O(n)？两者都基于同层对比假设，且都有编译时优化手段——Vue 3 的 Block Tree + PatchFlag，React 的编译器自动添加 `memo`/`useMemo`（React 19 编译器实验性支持）。
+> Vue 和 React 的 Diff 都是 O(n)，因为同层对比的假设是一样的。编译时优化各有千秋——Vue 3 靠 Block Tree + PatchFlag，React 19 编译器自动加 `memo`/`useMemo`。
 
 ---
 
@@ -286,7 +284,7 @@ const isStale = query !== deferredQuery
 const filtered = useMemo(() => items.filter(i => i.name.includes(deferredQuery)), [items, deferredQuery])
 ```
 
-> **💬 追问**：`useDeferredValue` 和 debounce 的区别？debounce 基于固定时间延迟（如 300ms），期间 UI 完全冻结；`useDeferredValue` 基于 React 并发调度，在浏览器空闲时尽快完成滞后渲染，响应更快且无"等 300ms 突然刷新"的体验断层。不适合 `useTransition` 的场景：需要立即反馈的更新（输入框值本身、按钮 disabled 状态）以及必须完整执行的更新（支付流程）。
+> `useDeferredValue` 和 debounce 不是一回事。debounce 固定延迟 300ms，期间 UI 冻结；`useDeferredValue` 基于并发调度，浏览器空闲时尽快完成滞后渲染，没有"突然刷新"的断层。不适合 `useTransition` 的情况：需要立即反馈的更新（输入框值、按钮 disabled）和必须完整执行的更新（支付流程）。
 
 ### 6.3 自动批处理
 
@@ -378,7 +376,7 @@ function UserProfile({ userPromise }) {
 <ThemeContext value="dark"><Page /></ThemeContext>
 ```
 
-> **💬 升级建议**：新项目直接用 React 19；React 18 项目可放心渐进升级（高度向后兼容）；Next.js 项目升级到 Next.js 15 + React 19 获取完整 RSC + Server Actions 体验。
+> 新项目直接用 React 19。React 18 项目渐进升级问题不大（高度向后兼容）。Next.js 的话升级到 15 + React 19，RSC + Server Actions 全家桶才完整。
 
 ---
 
@@ -460,7 +458,7 @@ export const persistor = persistStore(store)
 </Provider>
 ```
 
-> **💬 踩坑**：全量持久化到 localStorage 后上线改 state 结构，旧结构导致 REHYDRATE 后白屏。修复：只 whitelist 必须持久化的字段，其余状态每次启动重取；关键字段用 `createMigrate` + 版本号做迁移。
+> 全量持久化到 localStorage，上线后改 state 结构，旧数据 REHYDRATE 直接白屏。修法：whitelist 只放必须持久化的字段，其余每次启动重拉；关键字段用 `createMigrate` + 版本号做迁移。
 
 ### 8.5 MobX
 

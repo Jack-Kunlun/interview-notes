@@ -22,7 +22,7 @@ const HeavyChart = lazy(() => import('./HeavyChart'))
 
 ### 图片优化
 
-图片通常占页面体积 60%+。三步走：**格式**（WebP/AVIF 比 JPEG 小 25%~50%）→ **响应式**（`srcset` + `sizes` 按屏幕选最优尺寸）→ **懒加载**（`loading="lazy"` 延迟加载视口外图片）。
+图片通常占页面体积 60%+。分三步：
 
 ```html
 <picture>
@@ -57,8 +57,6 @@ const HeavyChart = lazy(() => import('./HeavyChart'))
 ### 压缩与 CDN
 
 静态资源构建时同时生成 `.br` 和 `.gz`，Nginx `brotli_static on` 优先返回 Brotli，旧浏览器降级 Gzip。CDN 分发到边缘节点，配合强缓存（带哈希文件 `max-age=31536000, immutable`，HTML 用 `no-cache`），命中率可达 98%+。
-
-> **踩坑**：CDN 缓存忘设 `Vary: Accept-Encoding`，Brotli 版本返回给只支持 Gzip 的旧 WebView 导致白屏。preload 滥用会抢占带宽——只对首屏字体和 Hero 图使用。
 
 ---
 
@@ -174,8 +172,6 @@ function App() { return <><CounterButton /><ExpensiveTree /></> }
 </KeepAlive>
 ```
 
-> **踩坑**：ECharts 实例用 `ref` 而非 `shallowRef` 存储——Vue 深度代理了几千个内部属性，初始化从 50ms 暴增到 400ms。React.memo 滥用反而加内存开销——先 Profiler 定位热点，只在渲染耗时 >1ms 的组件上做 memo。
-
 ---
 
 ## 四、性能监控体系
@@ -232,4 +228,3 @@ webpack-bundle-analyzer / rollup-plugin-visualizer 将产物以矩形树图可�
 
 **合成监控**：Lighthouse CI 在 PR 阶段自动跑，设置 Performance Budget 低于阈值阻断合并。**RUM**：`web-vitals` 采集真实用户数据，按 P75/P95 分位值、设备、网络、地域分层分析，Grafana 设置告警（INP > 200ms / CLS > 0.1）。数据上报用 `navigator.sendBeacon` 或 `fetch` + `keepalive: true` 保证页面关闭时不丢失。
 
-> **踩坑**：Lighthouse 跑分很高但用户说卡——Lighthouse 模拟 Moto G4 + 3G，和真实设备/网络差异大，必须结合 RUM 数据分层分析。全量引入 ECharts 导致 bundle 暴增 800KB——改用 `echarts/core` 按需引入，降到 150KB。

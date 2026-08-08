@@ -51,8 +51,6 @@ description: Chrome DevTools、Source Map、错误监控、移动端调试与常
 | `console.trace()` | 打印当前调用栈 |
 | `console.assert(cond, msg)` | 条件为 false 时输出错误 |
 
-> **踩坑**：Pretty Print 视图上打断点，刷新后断点全错位——格式化后行号是虚拟的。正确做法：确认 Source Map 加载后在源码 Tab（带 `webpack://` 前缀）的原文件上打断点。
-
 ---
 
 ## 二、Source Map
@@ -94,8 +92,6 @@ devtool: isDev ? 'eval-cheap-module-source-map' : 'hidden-source-map'
 ```nginx
 location ~ \.map$ { deny all; }
 ```
-
-> **踩坑**：刚接手项目时线上 Source Map 直接部署到了 CDN——任何人打开 DevTools 就能看到完整源码。改 `devtool: 'hidden-source-map'` + Nginx deny + CDN 批量清除已有 .map。
 
 ---
 

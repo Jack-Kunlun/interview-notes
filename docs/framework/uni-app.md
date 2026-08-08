@@ -80,7 +80,7 @@ export default {
 
 常用平台标识符：`H5`、`MP-WEIXIN`、`MP-ALIPAY`、`MP`（所有小程序）、`APP-PLUS`、`APP-PLUS-NVUE`。支持 `||` 组合：`#ifdef H5 || MP-WEIXIN`。
 
-> **面试要点**：条件编译是编译时的，不是运行时的。能编译时确定的差异用条件编译（零开销），运行时才能确定的（如 iOS vs Android 安全区域高度）用 `uni.getSystemInfoSync().platform`。中大型项目建议抽象 `src/platform/` 适配层，业务代码只调统一接口。
+> 条件编译是编译时的，不是运行时的。能编译时确定的差异用条件编译（零开销），运行时才能确定的（如 iOS vs Android 安全区域高度）用 `uni.getSystemInfoSync().platform`。中大型项目建议抽象 `src/platform/` 适配层，业务代码只调统一接口。
 
 ## 二、项目实战
 

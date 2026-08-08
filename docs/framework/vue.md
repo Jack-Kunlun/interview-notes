@@ -1,11 +1,11 @@
 ---
 title: Vue（2 & 3）
-description: Vue 2 / Vue 3 核心差异与深入原理复习，由浅入深六段递进
+description: Vue 2 / Vue 3 核心差异与深入原理复习
 ---
 
 # Vue（2 & 3）
 
-> 本节按「核心 API → 深入组件 → 响应式原理 → 编译器与性能 → 进阶 API → 工程实战」六段递进，同时覆盖 Vue 2 与 Vue 3 差异。
+> 核心 API → 深入组件 → 响应式原理 → 编译器与性能 → 进阶 API → 工程实战
 
 ## 一、上手 Vue 3：核心 API
 
@@ -36,8 +36,6 @@ watch([count, () => state.list], ([newC, newL]) => { /* 多源 */ })
 watchEffect(() => console.log(`count: ${count.value}`))
 ```
 
-> **💬 面试深度**：ref 用 `.value` 是因为内部是 getter/setter 对象（模板里自动解包）；reactive 不能解构，解构丢响应式用 toRefs；computed vs watch：computed 有缓存同步返回，watch 无缓存适合异步副作用；watchEffect 不需要新旧值对比，适合自动保存、打日志。源码：`packages/reactivity/src/ref.ts`、`reactive.ts`、`computed.ts`。踩坑：`watch(() => state.list, cb, { deep: true })` 监 5000 条大列表 → 每一次字段变化都深度遍历卡死 → 改用 `shallowRef` + 只对变化字段包 `ref`。
-
 ---
 
 ### 1.2 生命周期
@@ -63,8 +61,6 @@ onMounted(() => { /* DOM 已挂载 */ })
 onUnmounted(() => { /* 清理定时器、事件 */ })
 </script>
 ```
-
-> **💬 面试深度**：挂载顺序：父 beforeMount → 子 beforeMount → 子 mounted → 父 mounted。更新：父 beforeUpdate → 子 beforeUpdate → 子 updated → 父 updated。卸载：父 beforeUnmount → 子 beforeUnmount → 子 unmounted → 父 unmounted。踩坑：onMounted 里 `setInterval` 轮询没在 onBeforeUnmount 里清 → 切回来时两个定时器。源码：`packages/runtime-core/src/component.ts`。
 
 ---
 
@@ -93,8 +89,6 @@ emit('update', 'new value')
 provide('theme', ref('dark'))
 const theme = inject('theme', 'light')   // 默认值
 ```
-
-> **💬 面试深度**：provide/inject vs Pinia → 前者是组件树级注入（一组关联组件共享上下文），后者是全局跨路由状态管理。简单判断：只在一个 Feature 子组件用 → provide/inject，多页面共用 → Pinia。踩坑：provide 传 ref，子组件解构了 `.value` → computed 引用的纯值不更新，正确是在子组件始终保持 `.value` 引用。全局状态选 Pinia 不选 Vuex——无 mutations、TS 开箱即用、Setup Store 写法统一。
 
 ---
 
@@ -158,8 +152,6 @@ v-model 本质是**编译器语法糖**——不同元素类型展开方式不�
 // 带修饰符：v-model.trim → 额外传 modelModifiers: { trim: true }
 ```
 
-> **💬 面试深度**：v-model vs 手写 `:value + @input` → 功能等价，但 v-model 内置了 IME 输入法处理（compositionstart/end），手写不加会中文拼音中间态触发更新。多 v-model = Vue 2 `.sync` 升级版。踩坑：封装组件时对多个 v-model 加了修饰符，忘了声明 `xxxModifiers` prop → 修饰符不生效。源码：`packages/compiler-dom/src/transforms/vModel.ts`。
-
 ---
 
 ### 2.2 编译宏：defineExpose / defineOptions / defineSlots / defineModel
@@ -195,8 +187,6 @@ const title = defineModel<string>('title')      // v-model:title
 </script>
 ```
 
-> **💬 面试深度**：defineExpose 解决 script setup 默认封闭的问题（不像 Vue 2 `$refs.xxx` 能拿到一切）。defineModel 是 3.4 最大 DX 提升，替代手动 defineProps + defineEmits 样板。踩坑：defineExpose 全部暴露 → 父组件绕过校验直接改内部状态 → 正确做法按需暴露 API。源码：`packages/compiler-sfc/src/compileScript.ts`。
-
 ---
 
 ### 2.3 Teleport / Suspense
@@ -217,8 +207,6 @@ const title = defineModel<string>('title')      // v-model:title
   <template #fallback><LoadingSpinner /></template>
 </Suspense>
 ```
-
-> **💬 面试深度**：Teleport vs `position: fixed` → fixed 还在原 DOM 层级（父级 overflow/transform/filter 仍裁掉），Teleport 直接移 DOM 节点到 body。Suspense 不处理错误 → 搭配 `onErrorCaptured` 或 `defineAsyncComponent` 的 `errorComponent`。踩坑：Teleport Modal 卸载时报错，原因是在 onUnmounted 里引用了父组件 provide 的数据（Teleport 改变了卸载时序）→ 清理逻辑放 Modal 自身生命周期。源码：`packages/runtime-core/src/components/Teleport.ts`、`Suspense.ts`。
 
 ---
 
@@ -324,8 +312,6 @@ class Compile {
 | 数组索引不响应 | 无法高效监听 | `Vue.set(arr, i, val)` | Proxy 拦截 |
 | 数组 length 不响应 | 同上 | 用 splice 替代 | Proxy 拦截 |
 | 初始化递归开销 | 遍历所有嵌套属性 | `Object.freeze` 冻结 | Proxy 惰性递归 |
-
-> **💬 面试深度**：Vue 2 重写了数组原型 7 个变异方法（push/pop/shift/unshift/splice/sort/reverse）来手动触发通知，但 `arr[0]=x` 仍不行。Dep.target 是全局变量——因为 JS 单线程，同一时刻只有一个 Watcher 执行。踩坑：动态表单 `this.formData[field.key] = ''` 不更新 → 必须 `this.$set`。源码：`src/core/observer/index.js`、`dep.js`、`watcher.js`。
 
 ---
 
@@ -444,8 +430,6 @@ function computed(getter) {
 | 浏览器兼容 | IE9+ | 不可 polyfill，ES6+ |
 | 内存 | 每属性一 Dep | 共享 Proxy |
 
-> **💬 面试深度**：track/trigger 用 WeakMap 而非 Map → key 弱引用，对象不再被引用时自动 GC，防止内存泄漏。effect cleanup → 每次重执行前先清旧依赖，处理 if/else 分支的动态依赖（不清理会导致不必要的重新执行）。踩坑：reactive 包 API 大对象后用 `extracted = state.data.items` 取出传给子组件，子组件里整体替换 extracted → 断开 Proxy 连接 → 通过 `state.data.items = newItems` 修改。源码：`packages/reactivity/src/reactive.ts`、`ref.ts`、`effect.ts`。
-
 ---
 
 ## 四、编译器与性能
@@ -503,8 +487,6 @@ onActivated(() => { /* 切回来：恢复轮询 */ })
 onDeactivated(() => { /* 切走：暂停轮询 */ })
 </script>
 ```
-
-> **💬 面试深度**：KeepAlive 不触发 onUnmounted → 定时器如果在 onUnmounted 里清理，切走时仍然在跑。正确：onDeactivated 停，onActivated 启。只有被 `exclude` 排除或 KeepAlive 自己被销毁才走 onUnmounted。源码：`packages/runtime-core/src/components/KeepAlive.ts`。
 
 ---
 
@@ -588,8 +570,6 @@ scope.stop()  // 内部所有 effect 同时停止
 | 组合函数对外暴露 | effectScope 包一层，外部可控 |
 | Pinia Setup Store | 内部自动用 effectScope |
 | 全局监听/轮询 | effectScope + onScopeDispose |
-
-> **💬 面试深度**：effectScope vs watch 返回 stop → scope.stop 同时停 100 个 watcher（写组合函数必用，否则内存泄漏）。customRef vs computed → computed 纯派生自动缓存，customRef 手动控制 track/trigger，适合桥接外部非响应式数据源（WebSocket/localStorage）。markRaw 大屏场景刚需——图表配置几千行，reactive 递归代理开销指数级。源码：`packages/reactivity/src/effectScope.ts`。
 
 ---
 

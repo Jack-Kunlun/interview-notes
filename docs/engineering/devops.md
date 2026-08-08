@@ -93,8 +93,6 @@ keepalive_timeout 65;               # 长连接复用
 client_max_body_size 20m;           # 上传限制（默认 1MB）
 ```
 
-> **踩坑**：没配 `client_max_body_size`，用户上传 5MB 图片直接 413。`proxy_pass` 后没配 `X-Real-IP` 和 `X-Forwarded-For`，后端日志全是 `127.0.0.1`，无法做 IP 限流。
-
 ---
 
 ## 二、Docker 容器化
@@ -141,8 +139,6 @@ services:
     image: postgres:16-alpine
     volumes: [pgdata:/var/lib/postgresql/data]
 ```
-
-> **踩坑**：`depends_on` 只等容器启动（running），不等服务就绪（端口监听）。backend 起得比 db 快直接报 `ECONNREFUSED`。修复：backend 的 entrypoint 加 `wait-for-it.sh db:5432`，或给 db 加 healthcheck。
 
 ### 常用命令
 

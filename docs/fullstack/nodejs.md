@@ -40,9 +40,9 @@ Node.js 主线程只执行 JS，文件 I/O、DNS 解析、加密压缩等阻塞�
 UV_THREADPOOL_SIZE=8 node server.js  # CPU 密集场景设为 CPU 核数
 ```
 
-> **面试要点**：`setTimeout(fn, 0)` 和 `setImmediate(fn)` 谁先执行取决于事件循环启动时机——在 poll 阶段被 I/O 回调包裹调用时 setImmediate 先执行，主模块顶层直接调用时 timers 先执行概率大。`Promise.then` 和 `process.nextTick` 谁先？微任务分两层：nextTick 队列优先于 Promise 队列。源码在 `libuv/src/unix/core.c` 的 `uv_run()` 和 Node 的 `lib/internal/process/task_queues.js`。
+> `setTimeout(fn, 0)` 和 `setImmediate(fn)` 谁先执行取决于事件循环启动时机——在 poll 阶段被 I/O 回调包裹调用时 setImmediate 先执行，主模块顶层直接调用时 timers 先执行概率大。`Promise.then` 和 `process.nextTick` 谁先？微任务分两层：nextTick 队列优先于 Promise 队列。源码在 `libuv/src/unix/core.c` 的 `uv_run()` 和 Node 的 `lib/internal/process/task_queues.js`。
 >
-> 踩坑：Node 14 起未捕获的 Promise rejection 从仅警告升级为 `process.exit(1)`，升版本后之前偷偷吞异常的 Promise 突然导致进程崩溃。修复：全局监听 `process.on('unhandledRejection', handler)` 并接入日志告警。
+> 注意：Node 14 起未捕获的 Promise rejection 从仅警告升级为 `process.exit(1)`，升版本后之前偷偷吞异常的 Promise 突然导致进程崩溃。修复：全局监听 `process.on('unhandledRejection', handler)` 并接入日志告警。
 
 ## 数据流与多进程
 
@@ -79,9 +79,9 @@ if (cluster.isMaster) {
 }
 ```
 
-> **面试要点**：PM2 的 cluster mode 底层也是 Node cluster 模块，但额外提供：零停机重启（graceful reload）、进程监控和自动重启、日志聚合、内存/CPU 阈值重启、动态扩缩容。原生 cluster 需自己实现这些运维能力。
+> PM2 的 cluster mode 底层也是 Node cluster 模块，但额外提供：零停机重启（graceful reload）、进程监控和自动重启、日志聚合、内存/CPU 阈值重启、动态扩缩容。原生 cluster 需自己实现这些运维能力。
 >
-> 踩坑：用 `fs.createReadStream` 读大 JSON 文件做流式解析，但 `JSON.parse` 需要完整字符串——`Buffer.concat(chunks).toString()` 拼起来再 parse 跟一次读入内存没区别，8GB 文件直接 OOM。修复：用 streaming JSON 解析器（如 NDJSON 逐行格式），真正流式处理。日志管道每天 200GB，用 Stream + Transform 实现解析→过滤→写入流水线，内存恒定 50MB。
+> 注意：用 `fs.createReadStream` 读大 JSON 文件做流式解析，但 `JSON.parse` 需要完整字符串——`Buffer.concat(chunks).toString()` 拼起来再 parse 跟一次读入内存没区别，8GB 文件直接 OOM。修复：用 streaming JSON 解析器（如 NDJSON 逐行格式），真正流式处理。日志管道每天 200GB，用 Stream + Transform 实现解析→过滤→写入流水线，内存恒定 50MB。
 
 ## API 设计与数据存储
 
@@ -128,7 +128,7 @@ EXPLAIN SELECT * FROM orders WHERE ...;      -- 2. 分析执行计划（关注 t
 CREATE INDEX idx_user_status ON orders(user_id, status);  -- 3. 覆盖索引避免回表
 ```
 
-> **面试要点**：项目选型——为什么 NestJS 而非 Express：Express 太灵活导致大项目代码组织混乱，NestJS 的依赖注入、模块化、装饰器天然分层（Controller/Service/Module），10+ 人团队维护成本显著更低。
+> NestJS vs Express：Express 太灵活导致大项目代码组织混乱，NestJS 的依赖注入、模块化、装饰器天然分层（Controller/Service/Module），10+ 人团队维护成本显著更低。
 
 ## 微服务架构
 
@@ -142,6 +142,6 @@ CREATE INDEX idx_user_status ON orders(user_id, status);  -- 3. 覆盖索引避�
 | 弹性治理 | opossum 熔断 / 重试 + 指数退避 / 降级 |
 | 链路追踪 | OpenTelemetry + Jaeger |
 
-> **面试要点**：分布式事务——尽量避免跨服务事务，优先用最终一致性。Saga 模式（每服务执行本地事务 + 发消息触发下一步，失败执行补偿操作）、事务发件箱（outbox pattern，本地事务同步写入事件表，CDC 推送到消息队列）。gRPC vs REST：Protobuf 比 JSON 体积小 3-10 倍、编解码快 5-10 倍，基于 HTTP/2 的多路复用和双向流让吞吐提升 5-7 倍；代价是可调试性下降（gRPC 需 grpcurl，不能直接 curl）。
+> 分布式事务——尽量避免跨服务事务，优先用最终一致性。Saga 模式（每服务执行本地事务 + 发消息触发下一步，失败执行补偿操作）、事务发件箱（outbox pattern，本地事务同步写入事件表，CDC 推送到消息队列）。gRPC vs REST：Protobuf 比 JSON 体积小 3-10 倍、编解码快 5-10 倍，基于 HTTP/2 的多路复用和双向流让吞吐提升 5-7 倍；代价是可调试性下降（gRPC 需 grpcurl，不能直接 curl）。
 >
-> 踩坑：把单体里同一事务的"下单+扣库存"拆到两个服务，HTTP 串联调用——订单已生成但库存服务挂了，数据不一致。修复：引入消息队列，订单服务发 "OrderCreated" 事件，库存服务消费事件扣库存，失败则发 "InventoryDeductFailed" 事件让订单服务标记取消——最终一致性代替强一致性。选 gRPC 而非 REST 的决策点：内部微服务间无浏览器兼容需求，`.proto` 文件即接口规范，代码自动生成，前后端联调不再为"文档和实现不一致"吵架。
+> 注意：把单体里同一事务的"下单+扣库存"拆到两个服务，HTTP 串联调用——订单已生成但库存服务挂了，数据不一致。修复：引入消息队列，订单服务发 "OrderCreated" 事件，库存服务消费事件扣库存，失败则发 "InventoryDeductFailed" 事件让订单服务标记取消——最终一致性代替强一致性。选 gRPC 而非 REST 的决策点：内部微服务间无浏览器兼容需求，`.proto` 文件即接口规范，代码自动生成，前后端联调不再为"文档和实现不一致"吵架。

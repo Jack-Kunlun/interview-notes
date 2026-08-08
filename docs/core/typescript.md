@@ -322,8 +322,7 @@ type IsNeverSafe<T> = [T] extends [never] ? true : false
 type R4 = IsNeverSafe<never> // true ✅
 ```
 
-> **追问预判**："`never` 在条件类型中有什么特殊行为？"——因为分配条件类型会把 `never` 当作"空联合类型"对待，分发时直接消失——没有成员可以分发，所以整个条件类型返回 `never`。这就是为什么判断 `never` 必须用 `[T] extends [never]` 阻止分发。另外 `never` 是联合类型的 identity 元素（`never | T = T`），所以 `Exclude<string | never, never>` = `string`。
-
+>
 ### 4.4 模板字面量类型
 
 TS 4.1 起模板字面量类型允许在类型层面拼接、拆分字符串。结合 `infer` 和条件类型，可以实现字符串解析、路由参数提取、驼峰/下划线转换等。
@@ -482,7 +481,7 @@ name.toUpperCase() // 💥 运行时 TypeError
 }
 ```
 
-> **踩过的坑**：新建 Vite + TS 项目，`tsconfig.json` 里写了 `"moduleResolution": "node"` 但 Vite 期望 `"bundler"`——结果 `import` 不带 `.ts` 扩展名时 TS 不报错，但 Vite dev server 有时找不到模块。更隐蔽的是，老的 `node` 模式对 `package.json` 的 `exports` 字段支持不完整，导致 `import xxx from "lodash/chunk"` 这样的子路径导入在 TS 检查时报"找不到模块"。**修复**：TS 5.0+ 项目统一用 `"moduleResolution": "bundler"` + `"allowImportingTsExtensions": true`，并确保 `vite-tsconfig-paths` 或类似插件同步路径别名。
+>
 
 ### 6.4 声明文件：`.d.ts` / `declare module` / `declare global`
 

@@ -56,8 +56,6 @@ observer.observe(chartRef.value!)
 // onBeforeUnmount: observer.disconnect(); chart.dispose()
 ```
 
-> **踩坑**：全量引入 ECharts（`import * as echarts from 'echarts'`）bundle 暴增 800KB。改用按需引入：`import { BarChart, LineChart } from 'echarts/charts'` + `import { GridComponent, TooltipComponent } from 'echarts/components'`，bundle 降到 120KB。
-
 ---
 
 ## 二、进阶实战
@@ -98,7 +96,5 @@ const option = {
   series: [{ type: 'map', map: 'china', data: [{ name: '广东', value: 800 }] }],
 }
 ```
-
-> **踩坑**：Vue 组件中 `watch` 数据变化 `setOption`，但组件卸载时忘了 `dispose()`。后果：每次进入创建新实例，切走再回来图表叠加、hover 触发多次 tooltip 闪烁、内存泄露。修复：`onBeforeUnmount` 中必须 `chart.dispose()`。切换图表类型时也先 `dispose()` 旧实例或复用同一实例 `setOption(newOpt, { notMerge: true })`。
 
 > **选型**：中后台 Dashboard → ECharts（组件丰富、中文生态好）；BI 分析 → AntV G2（图形语法灵活）；海外轻量 → Chart.js（bundle 小）；专业 GIS → Mapbox/deck.gl。
