@@ -1,6 +1,7 @@
 node_modules
 docs/.vitepress/dist
 docs/.vitepress/cache
+docs/.vitepress/*.timestamp-*.mjs
 .workbuddy
 .DS_Store
 *.log
