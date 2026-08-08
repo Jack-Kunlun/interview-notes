@@ -31,7 +31,7 @@ export default defineConfig({
           {
             text: 'CSS',
             items: [
-              { text: 'CSS 基础 & 组件库', link: '/guide/css' },
+              { text: 'CSS 基础', link: '/guide/css' },
               { text: 'CSS 深入', link: '/guide/css-deep' },
             ]
           },
@@ -114,7 +114,7 @@ export default defineConfig({
           text: 'CSS',
           collapsed: false,
           items: [
-            { text: 'CSS 基础 & 组件库', link: '/guide/css' },
+            { text: 'CSS 基础', link: '/guide/css' },
             { text: 'CSS 深入（BFC / 层叠）', link: '/guide/css-deep' },
           ]
         },
