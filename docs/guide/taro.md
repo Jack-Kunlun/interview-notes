@@ -162,4 +162,4 @@ Taro DOM 运行在逻辑层（JS 线程），每次更新都需 setData 序列�
 
 **Q4: Taro ScrollView 常见坑？**
 
-必须显式指定高度（`height: '100vh'` 或计算值），小程序 `<scroll-view>` 的 `flex: 1` 部分版本不生效，H5 端 `overflow: auto` 却能自动撑开——同段代码两端表现不同。修复：`<ScrollView style={{ height: '...' }}>`，H5 用条件编译单独设 `height: auto`。
+必须显式指定高度（`height: '100vh'` 或计算值），小程序 `<scroll-view>` 的 `flex: 1` 部分版本不生效，H5 端 `overflow: auto` 却能自动撑开——同段代码两端表现不同。修复：`<ScrollView style={ { height: '...' } }>`，H5 用条件编译单独设 `height: auto`。
