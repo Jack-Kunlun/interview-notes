@@ -3,7 +3,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: '风岚 · 前端面试笔记',
   description: '7年前端经验 | Vue + React 双栈 | 知识复习 & 面试准备',
-  base: '/interview-notes/',
+  base: '/',
   lang: 'zh-CN',
 
   head: [
