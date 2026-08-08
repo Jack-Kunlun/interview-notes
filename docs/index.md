@@ -61,9 +61,9 @@ features:
     details: uni-app 分包、React Native 性能优化、小程序双线程架构
     link: /framework/cross-platform
   - icon: 📲
-    title: 移动端开发
-    details: uni-app / Taro / RN、自适应方案、热更新、小程序
-    link: /framework/mobile-common
+    title: 移动端适配
+    details: CSS 单位、rem/vw 自适应、1px 边框、安全区域、调试
+    link: /framework/cross-platform
 
   # ── 工程体系 ──
   - icon: ⚙️

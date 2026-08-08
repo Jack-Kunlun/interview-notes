@@ -52,7 +52,7 @@ description: 实践应用题 + 情景分析题，模拟面试真实场景
    - Android `backdrop-filter` / `flex gap` 旧版本兼容
 3. **预防**：`browserslist` + PostCSS autoprefixer + Can I Use 检查
 
-> 更多移动端知识见[移动端通用](/framework/mobile-common)
+> 更多移动端知识见[跨端开发概览](/framework/cross-platform)
 
 ---
 

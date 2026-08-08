@@ -38,7 +38,6 @@ export default defineConfig({
             text: '跨端开发',
             items: [
               { text: '跨端开发概览', link: '/framework/cross-platform' },
-              { text: '移动端通用', link: '/framework/mobile-common' },
               { text: 'uni-app', link: '/framework/uni-app' },
               { text: 'Taro', link: '/framework/taro' },
               { text: 'React Native', link: '/framework/rn' },
@@ -110,7 +109,6 @@ export default defineConfig({
           collapsed: false,
           items: [
             { text: '跨端开发概览', link: '/framework/cross-platform' },
-            { text: '移动端通用知识', link: '/framework/mobile-common' },
             { text: 'uni-app 跨端', link: '/framework/uni-app' },
             { text: 'Taro 跨端', link: '/framework/taro' },
             { text: 'React Native', link: '/framework/rn' },
