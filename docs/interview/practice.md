@@ -5,7 +5,7 @@ description: 实践应用题 + 情景分析题，模拟面试真实场景
 
 # 模拟面试题
 
-> 基础概念类面试题已融入[知识点复习](/guide/javascript)，这里聚焦实践应用和情景分析，考察综合能力。
+> 基础概念类面试题已融入[知识点复习](/core/javascript)，这里聚焦实践应用和情景分析，考察综合能力。
 
 ## 一、实践应用题
 
@@ -21,7 +21,7 @@ description: 实践应用题 + 情景分析题，模拟面试真实场景
 
 **动态高度方案**：无法预计算时，用 `ResizeObserver` 逐步缓存测量高度，滚动到位置时动态调整偏移。
 
-> 更多面试题参见：[权限控制](/guide/permission)、[大文件上传](/guide/javascript)、[首屏优化](/guide/performance)、[Node.js API 设计](/guide/nodejs)
+> 更多面试题参见：[权限控制](/fullstack/permission)、[大文件上传](/core/javascript)、[首屏优化](/engineering/performance)、[Node.js API 设计](/fullstack/nodejs)
 
 ---
 
@@ -37,7 +37,7 @@ description: 实践应用题 + 情景分析题，模拟面试真实场景
    - Network 面板：检查是否新增了未压缩/CDN 化的大依赖
    - Core Web Vitals：LCP / CLS 是否恶化
 3. **后端/网络排查**：新 API 是否有 N+1 查询、Redis 缓存是否失效、CDN 命中率
-4. **常见根因**：大包未 tree-shake、图片未压缩、数据库缺索引 → 详见[性能优化](/guide/performance) & [调试监控](/guide/debugging)
+4. **常见根因**：大包未 tree-shake、图片未压缩、数据库缺索引 → 详见[性能优化](/engineering/performance) & [调试监控](/engineering/debugging)
 
 ---
 
@@ -52,7 +52,7 @@ description: 实践应用题 + 情景分析题，模拟面试真实场景
    - Android `backdrop-filter` / `flex gap` 旧版本兼容
 3. **预防**：`browserslist` + PostCSS autoprefixer + Can I Use 检查
 
-> 更多移动端知识见[移动端通用](/guide/mobile-common)
+> 更多移动端知识见[移动端通用](/framework/mobile-common)
 
 ---
 
@@ -72,4 +72,4 @@ description: 实践应用题 + 情景分析题，模拟面试真实场景
 
 **分级目标**：低端机 FPS>24 / LCP<3s，中端机 FPS>30 / LCP<2s，高端机 FPS 60 / LCP<1.5s
 
-> 详见[性能优化](/guide/performance) & [CSS 深入动画](/guide/css-deep)
+> 详见[性能优化](/engineering/performance) & [CSS 深入动画](/core/css-deep)

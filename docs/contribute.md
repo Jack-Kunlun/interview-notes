@@ -38,13 +38,13 @@ git push origin add-xxx-notes
 ## 新增一篇笔记
 
 1. 在对应目录下新建 `.md` 文件：
-   - 知识点 → `docs/guide/`
+   - 知识点 → `docs/core/ 或 docs/framework/ 或 docs/engineering/ 或 docs/fullstack/`
    - 面试题 → `docs/interview/`
    - 面试准备 → `docs/preparation/`
 
 2. 在 `docs/.vitepress/config.mts` 的 `sidebar` 中添加一行：
    ```ts
-   { text: '新笔记标题', link: '/guide/new-topic' }
+   { text: '新笔记标题', link: '/core/javascript' }
    ```
 
 3. 提 PR 或直接 push 到 main

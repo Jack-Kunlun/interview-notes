@@ -14,75 +14,55 @@ export default defineConfig({
     logo: '📚',
     siteTitle: '前端面试笔记',
 
-    // 顶部导航
+    // 顶部导航 —— 4 个独立栏目
     nav: [
       { text: '首页', link: '/' },
       {
-        text: '知识点',
+        text: '编程语言',
         items: [
-          {
-            text: '语言基础',
-            items: [
-              { text: 'JavaScript 基础', link: '/guide/javascript' },
-              { text: 'TypeScript', link: '/guide/typescript' },
-              { text: '前端算法', link: '/guide/algorithms' },
-            ]
-          },
-          {
-            text: 'CSS',
-            items: [
-              { text: 'CSS 基础', link: '/guide/css' },
-              { text: 'CSS 深入', link: '/guide/css-deep' },
-            ]
-          },
-          {
-            text: '框架',
-            items: [
-              { text: 'Vue（2 & 3）', link: '/guide/vue' },
-              { text: 'React', link: '/guide/react' },
-              { text: '数据可视化', link: '/guide/visualization' },
-            ]
-          },
-          {
-            text: '浏览器与网络',
-            items: [
-              { text: '浏览器原理', link: '/guide/browser' },
-              { text: '网络通信', link: '/guide/networking' },
-            ]
-          },
+          { text: 'JavaScript 基础', link: '/core/javascript' },
+          { text: 'TypeScript', link: '/core/typescript' },
+          { text: '前端算法', link: '/core/algorithms' },
+          { text: 'CSS 基础', link: '/core/css' },
+          { text: 'CSS 深入', link: '/core/css-deep' },
+        ]
+      },
+      {
+        text: '框架生态',
+        items: [
+          { text: 'Vue（2 & 3）', link: '/framework/vue' },
+          { text: 'React', link: '/framework/react' },
+          { text: '数据可视化', link: '/framework/visualization' },
+          { text: 'SSR 服务端渲染', link: '/framework/ssr' },
           {
             text: '跨端开发',
             items: [
-              { text: '跨端开发概览', link: '/guide/cross-platform' },
-              { text: '移动端通用', link: '/guide/mobile-common' },
-              { text: 'uni-app', link: '/guide/uni-app' },
-              { text: 'Taro', link: '/guide/taro' },
-              { text: 'React Native', link: '/guide/rn' },
+              { text: '跨端开发概览', link: '/framework/cross-platform' },
+              { text: '移动端通用', link: '/framework/mobile-common' },
+              { text: 'uni-app', link: '/framework/uni-app' },
+              { text: 'Taro', link: '/framework/taro' },
+              { text: 'React Native', link: '/framework/rn' },
             ]
           },
-          {
-            text: '工程化',
-            items: [
-              { text: '工程化概述', link: '/guide/engineering' },
-              { text: '构建工具', link: '/guide/build-tools' },
-              { text: '性能优化', link: '/guide/performance' },
-              { text: '调试与监控', link: '/guide/debugging' },
-              { text: 'DevOps', link: '/guide/devops' },
-            ]
-          },
-          {
-            text: '架构与后端',
-            items: [
-              { text: '权限控制 & 架构', link: '/guide/permission' },
-              { text: 'Node.js & 数据库', link: '/guide/nodejs' },
-            ]
-          },
-          {
-            text: 'SSR 服务端渲染',
-            items: [
-              { text: 'SSR 服务端渲染', link: '/guide/ssr' },
-            ]
-          },
+        ]
+      },
+      {
+        text: '工程体系',
+        items: [
+          { text: '工程化概述', link: '/engineering/engineering' },
+          { text: '构建工具', link: '/engineering/build-tools' },
+          { text: '性能优化', link: '/engineering/performance' },
+          { text: '调试与监控', link: '/engineering/debugging' },
+          { text: 'DevOps', link: '/engineering/devops' },
+        ]
+      },
+      {
+        text: '网络与服务端',
+        items: [
+          { text: '浏览器原理', link: '/fullstack/browser' },
+          { text: '网络通信', link: '/fullstack/networking' },
+          { text: 'Node.js & 数据库', link: '/fullstack/nodejs' },
+          { text: '权限控制 & 架构', link: '/fullstack/permission' },
         ]
       },
       {
@@ -98,78 +78,69 @@ export default defineConfig({
       { text: '贡献笔记', link: '/contribute' },
     ],
 
-    // 侧边栏
+    // 侧边栏 —— 按路径分别配置
     sidebar: {
-      '/guide/': [
+      '/core/': [
         {
-          text: '语言基础',
+          text: '编程语言',
           collapsed: false,
           items: [
-            { text: 'JavaScript 基础', link: '/guide/javascript' },
-            { text: 'TypeScript', link: '/guide/typescript' },
-            { text: '前端算法（手写核心方法）', link: '/guide/algorithms' },
+            { text: 'JavaScript 基础', link: '/core/javascript' },
+            { text: 'TypeScript', link: '/core/typescript' },
+            { text: '前端算法（手写核心方法）', link: '/core/algorithms' },
+            { text: 'CSS 基础', link: '/core/css' },
+            { text: 'CSS 深入（BFC / 层叠）', link: '/core/css-deep' },
           ]
         },
+      ],
+
+      '/framework/': [
         {
-          text: 'CSS',
+          text: '框架生态',
           collapsed: false,
           items: [
-            { text: 'CSS 基础', link: '/guide/css' },
-            { text: 'CSS 深入（BFC / 层叠）', link: '/guide/css-deep' },
-          ]
-        },
-        {
-          text: '框架',
-          collapsed: false,
-          items: [
-            { text: 'Vue（2 & 3）', link: '/guide/vue' },
-            { text: 'React', link: '/guide/react' },
-            { text: '数据可视化（ECharts）', link: '/guide/visualization' },
-          ]
-        },
-        {
-          text: '浏览器与网络',
-          collapsed: false,
-          items: [
-            { text: '浏览器原理', link: '/guide/browser' },
-            { text: '网络通信', link: '/guide/networking' },
+            { text: 'Vue（2 & 3）', link: '/framework/vue' },
+            { text: 'React', link: '/framework/react' },
+            { text: '数据可视化（ECharts）', link: '/framework/visualization' },
+            { text: 'SSR 服务端渲染', link: '/framework/ssr' },
           ]
         },
         {
           text: '跨端开发',
           collapsed: false,
           items: [
-            { text: '跨端开发概览', link: '/guide/cross-platform' },
-            { text: '移动端通用知识', link: '/guide/mobile-common' },
-            { text: 'uni-app 跨端', link: '/guide/uni-app' },
-            { text: 'Taro 跨端', link: '/guide/taro' },
-            { text: 'React Native', link: '/guide/rn' },
+            { text: '跨端开发概览', link: '/framework/cross-platform' },
+            { text: '移动端通用知识', link: '/framework/mobile-common' },
+            { text: 'uni-app 跨端', link: '/framework/uni-app' },
+            { text: 'Taro 跨端', link: '/framework/taro' },
+            { text: 'React Native', link: '/framework/rn' },
           ]
         },
+      ],
+
+      '/engineering/': [
         {
-          text: '工程化',
+          text: '工程体系',
           collapsed: false,
           items: [
-            { text: '工程化概述（规范 / Monorepo）', link: '/guide/engineering' },
-            { text: '构建工具（Webpack / Vite / esbuild）', link: '/guide/build-tools' },
-            { text: '性能优化', link: '/guide/performance' },
-            { text: '调试与监控', link: '/guide/debugging' },
-            { text: 'DevOps（Nginx / Docker）', link: '/guide/devops' },
+            { text: '工程化概述（规范 / Monorepo）', link: '/engineering/engineering' },
+            { text: '构建工具（Webpack / Vite / esbuild）', link: '/engineering/build-tools' },
+            { text: '性能优化', link: '/engineering/performance' },
+            { text: '调试与监控', link: '/engineering/debugging' },
+            { text: 'DevOps（Nginx / Docker）', link: '/engineering/devops' },
           ]
         },
+      ],
+
+      '/fullstack/': [
         {
-          text: '架构与后端',
+          text: '网络与服务端',
           collapsed: false,
           items: [
-            { text: '权限控制 & 架构设计', link: '/guide/permission' },
-            { text: 'Node.js & 数据库', link: '/guide/nodejs' },
-          ]
-        },
-        {
-          text: 'SSR 服务端渲染',
-          collapsed: false,
-          items: [
-            { text: 'SSR 服务端渲染', link: '/guide/ssr' },
+            { text: '浏览器原理', link: '/fullstack/browser' },
+            { text: '网络通信', link: '/fullstack/networking' },
+            { text: 'Node.js & 数据库', link: '/fullstack/nodejs' },
+            { text: '权限控制 & 架构设计', link: '/fullstack/permission' },
           ]
         },
       ],

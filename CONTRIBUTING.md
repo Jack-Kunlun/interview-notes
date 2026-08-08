@@ -6,7 +6,7 @@
 
 1. Fork 本仓库
 2. 在对应目录下新建或修改 `.md` 文件
-   - 知识点 → `docs/guide/`
+   - 知识点 → `docs/core/` / `docs/framework/` / `docs/engineering/` / `docs/fullstack/`
    - 面试题 → `docs/interview/`
    - 面试准备 → `docs/preparation/`
 3. 若新建文件，需在 `docs/.vitepress/config.mts` 的 `sidebar` 中添加对应条目
@@ -34,7 +34,10 @@
 
 ```
 docs/
-├── guide/        # 知识点复习清单（按技术栈分类）
-├── interview/    # 模拟面试题（按题型分类）
+├── core/         # 编程语言（JS / TS / CSS / 算法）
+├── framework/    # 框架生态（Vue / React / 可视化 / SSR / 跨端）
+├── engineering/  # 工程体系（构建工具 / 性能 / 调试 / DevOps）
+├── fullstack/    # 网络与服务端（浏览器 / 网络 / Node.js / 权限）
+├── interview/    # 模拟面试题
 └── preparation/  # 面试准备（自我介绍、检查清单等）
 ```
