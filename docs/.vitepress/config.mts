@@ -20,27 +20,62 @@ export default defineConfig({
       {
         text: '知识点',
         items: [
-          { text: 'JavaScript 基础', link: '/guide/javascript' },
-          { text: 'Vue（2 & 3）', link: '/guide/vue' },
-          { text: 'React', link: '/guide/react' },
-          { text: 'TypeScript', link: '/guide/typescript' },
-          { text: '跨端开发', link: '/guide/cross-platform' },
-          { text: '工程化', link: '/guide/engineering' },
-          { text: 'CSS 基础 & 组件库', link: '/guide/css' },
-          { text: 'CSS 深入', link: '/guide/css-deep' },
-          { text: '浏览器原理', link: '/guide/browser' },
-          { text: '权限控制 & 架构', link: '/guide/permission' },
-          { text: 'Node.js & 数据库', link: '/guide/nodejs' },
-          { text: '数据可视化', link: '/guide/visualization' },
-          { text: '性能优化', link: '/guide/performance' },
-          { text: '前端算法', link: '/guide/algorithms' },
-          { text: '错误排查', link: '/guide/debugging' },
-          { text: '网络通信', link: '/guide/networking' },
-          { text: 'DevOps', link: '/guide/devops' },
-          { text: 'uni-app', link: '/guide/uni-app' },
-          { text: 'Taro', link: '/guide/taro' },
-          { text: 'React Native', link: '/guide/rn' },
-          { text: '移动端通用', link: '/guide/mobile-common' },
+          {
+            text: '语言基础',
+            items: [
+              { text: 'JavaScript 基础', link: '/guide/javascript' },
+              { text: 'TypeScript', link: '/guide/typescript' },
+              { text: '前端算法', link: '/guide/algorithms' },
+            ]
+          },
+          {
+            text: 'CSS',
+            items: [
+              { text: 'CSS 基础 & 组件库', link: '/guide/css' },
+              { text: 'CSS 深入', link: '/guide/css-deep' },
+            ]
+          },
+          {
+            text: '框架',
+            items: [
+              { text: 'Vue（2 & 3）', link: '/guide/vue' },
+              { text: 'React', link: '/guide/react' },
+            ]
+          },
+          {
+            text: '浏览器与网络',
+            items: [
+              { text: '浏览器原理', link: '/guide/browser' },
+              { text: '网络通信', link: '/guide/networking' },
+            ]
+          },
+          {
+            text: '跨端开发',
+            items: [
+              { text: '跨端开发概览', link: '/guide/cross-platform' },
+              { text: '移动端通用', link: '/guide/mobile-common' },
+              { text: 'uni-app', link: '/guide/uni-app' },
+              { text: 'Taro', link: '/guide/taro' },
+              { text: 'React Native', link: '/guide/rn' },
+            ]
+          },
+          {
+            text: '工程化',
+            items: [
+              { text: '工程化（Vite / Webpack）', link: '/guide/engineering' },
+              { text: '性能优化', link: '/guide/performance' },
+              { text: '调试与监控', link: '/guide/debugging' },
+              { text: '数据可视化', link: '/guide/visualization' },
+              { text: 'DevOps', link: '/guide/devops' },
+            ]
+          },
+          {
+            text: '架构与后端',
+            items: [
+              { text: '权限控制 & 架构', link: '/guide/permission' },
+              { text: 'Node.js & 数据库', link: '/guide/nodejs' },
+            ]
+          },
         ]
       },
       {
@@ -71,47 +106,39 @@ export default defineConfig({
           collapsed: false,
           items: [
             { text: 'JavaScript 基础', link: '/guide/javascript' },
-          ]
-        },
-        {
-          text: '框架与语言',
-          collapsed: false,
-          items: [
-            { text: 'Vue（2 & 3）', link: '/guide/vue' },
-            { text: 'React', link: '/guide/react' },
             { text: 'TypeScript', link: '/guide/typescript' },
+            { text: '前端算法（手写核心方法）', link: '/guide/algorithms' },
           ]
         },
         {
-          text: '跨端 & 工程化',
-          collapsed: false,
-          items: [
-            { text: '跨端开发（uni-app / RN）', link: '/guide/cross-platform' },
-            { text: '工程化（Vite / Webpack）', link: '/guide/engineering' },
-          ]
-        },
-        {
-          text: '浏览器 & CSS',
+          text: 'CSS',
           collapsed: false,
           items: [
             { text: 'CSS 基础 & 组件库', link: '/guide/css' },
             { text: 'CSS 深入（BFC / 层叠）', link: '/guide/css-deep' },
+          ]
+        },
+        {
+          text: '框架',
+          collapsed: false,
+          items: [
+            { text: 'Vue（2 & 3）', link: '/guide/vue' },
+            { text: 'React', link: '/guide/react' },
+          ]
+        },
+        {
+          text: '浏览器与网络',
+          collapsed: false,
+          items: [
             { text: '浏览器原理', link: '/guide/browser' },
+            { text: '网络通信', link: '/guide/networking' },
           ]
         },
         {
-          text: '后端 & 架构',
+          text: '跨端开发',
           collapsed: false,
           items: [
-            { text: '权限控制 & 架构设计', link: '/guide/permission' },
-            { text: 'Node.js & 数据库', link: '/guide/nodejs' },
-            { text: '数据可视化（ECharts）', link: '/guide/visualization' },
-          ]
-        },
-        {
-          text: '移动端',
-          collapsed: false,
-          items: [
+            { text: '跨端开发概览', link: '/guide/cross-platform' },
             { text: '移动端通用知识', link: '/guide/mobile-common' },
             { text: 'uni-app 跨端', link: '/guide/uni-app' },
             { text: 'Taro 跨端', link: '/guide/taro' },
@@ -119,14 +146,22 @@ export default defineConfig({
           ]
         },
         {
-          text: '工程实践',
+          text: '工程化',
           collapsed: false,
           items: [
+            { text: '工程化（Vite / Webpack）', link: '/guide/engineering' },
             { text: '性能优化', link: '/guide/performance' },
-            { text: '前端算法', link: '/guide/algorithms' },
-            { text: '错误排查', link: '/guide/debugging' },
-            { text: '网络通信', link: '/guide/networking' },
-            { text: 'DevOps（Nginx/Docker）', link: '/guide/devops' },
+            { text: '调试与监控', link: '/guide/debugging' },
+            { text: '数据可视化（ECharts）', link: '/guide/visualization' },
+            { text: 'DevOps（Nginx / Docker）', link: '/guide/devops' },
+          ]
+        },
+        {
+          text: '架构与后端',
+          collapsed: false,
+          items: [
+            { text: '权限控制 & 架构设计', link: '/guide/permission' },
+            { text: 'Node.js & 数据库', link: '/guide/nodejs' },
           ]
         },
       ],

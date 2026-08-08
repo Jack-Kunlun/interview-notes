@@ -17,10 +17,27 @@ hero:
       link: /contribute
 
 features:
+  # ── 语言基础 ──
   - icon: 💛
     title: JavaScript 基础
     details: 原型链、闭包、this指向、Promise、ES6+、防抖节流
     link: /guide/javascript
+  - icon: 🔷
+    title: TypeScript
+    details: 泛型、工具类型、类型体操、声明文件
+    link: /guide/typescript
+  - icon: 🔢
+    title: 前端算法
+    details: 手写 Promise/async、call-apply-bind、LRU、EventEmitter、柯里化
+    link: /guide/algorithms
+
+  # ── CSS ──
+  - icon: 🎨
+    title: CSS 深入
+    details: BFC、层叠上下文、合成层、动画性能优化
+    link: /guide/css-deep
+
+  # ── 框架 ──
   - icon: 🟢
     title: Vue（2 & 3）
     details: Composition API、响应式原理、Diff 算法、Pinia、Vue 3 编译器
@@ -29,26 +46,50 @@ features:
     title: React
     details: Hooks、Fiber 架构、Concurrent Mode、React 18 新特性
     link: /guide/react
-  - icon: 🔷
-    title: TypeScript
-    details: 泛型、工具类型、类型体操、声明文件
-    link: /guide/typescript
-  - icon: 📱
-    title: 跨端开发
-    details: uni-app 分包、React Native 性能优化、小程序双线程架构
-    link: /guide/cross-platform
-  - icon: ⚙️
-    title: 工程化
-    details: Vite / Webpack 原理、Monorepo、Tree Shaking
-    link: /guide/engineering
-  - icon: 🎨
-    title: CSS 深入
-    details: BFC、层叠上下文、合成层、动画性能优化
-    link: /guide/css-deep
+
+  # ── 浏览器与网络 ──
   - icon: 🌐
     title: 浏览器原理
     details: 渲染流程、Event Loop、V8 GC、内存泄漏、HTTP/2&3
     link: /guide/browser
+  - icon: 🔗
+    title: 网络通信
+    details: WebSocket 心跳重连、Socket.io、SSE、长链接
+    link: /guide/networking
+
+  # ── 跨端开发 ──
+  - icon: 📱
+    title: 跨端开发
+    details: uni-app 分包、React Native 性能优化、小程序双线程架构
+    link: /guide/cross-platform
+  - icon: 📱
+    title: 移动端开发
+    details: uni-app / Taro / RN、自适应方案、热更新、小程序
+    link: /guide/mobile-common
+
+  # ── 工程化 ──
+  - icon: ⚙️
+    title: 工程化
+    details: Vite / Webpack 原理、Monorepo、Tree Shaking
+    link: /guide/engineering
+  - icon: ⚡
+    title: 性能优化
+    details: 加载优化、运行时优化、Lighthouse、Web Vitals、Bundle 分析
+    link: /guide/performance
+  - icon: 🐛
+    title: 错误排查
+    details: Chrome DevTools、SourceMap、Sentry、线上监控、移动端调试
+    link: /guide/debugging
+  - icon: 📊
+    title: 数据可视化
+    details: ECharts 核心配置、大屏性能优化
+    link: /guide/visualization
+  - icon: 🐳
+    title: DevOps
+    details: Nginx 配置、Docker 多阶段构建、CI/CD、部署流程
+    link: /guide/devops
+
+  # ── 架构与后端 ──
   - icon: 🔐
     title: 权限控制 & 架构
     details: RBAC、动态路由、多租户、Token 无感刷新
@@ -57,34 +98,8 @@ features:
     title: Node.js & 数据库
     details: Event Loop 六阶段、Stream/Cluster、NestJS、JWT
     link: /guide/nodejs
-  - icon: 📊
-    title: 数据可视化
-    details: ECharts 核心配置、大屏性能优化
-    link: /guide/visualization
-  - icon: 📱
-    title: 移动端开发
-    details: uni-app / Taro / RN、自适应方案、热更新、小程序
-    link: /guide/mobile-common
-  - icon: ⚡
-    title: 性能优化
-    details: 加载优化、运行时优化、Lighthouse、Web Vitals、Bundle 分析
-    link: /guide/performance
-  - icon: 🔢
-    title: 前端算法
-    details: 手写 Promise/async、call-apply-bind、LRU、EventEmitter、柯里化
-    link: /guide/algorithms
-  - icon: 🐛
-    title: 错误排查
-    details: Chrome DevTools、SourceMap、Sentry、线上监控、移动端调试
-    link: /guide/debugging
-  - icon: 🔗
-    title: 网络通信
-    details: WebSocket 心跳重连、Socket.io、SSE、长链接
-    link: /guide/networking
-  - icon: 🐳
-    title: DevOps
-    details: Nginx 配置、Docker 多阶段构建、CI/CD、部署流程
-    link: /guide/devops
+
+  # ── 面试资源 ──
   - icon: 💬
     title: 模拟面试题
     details: 技术基础 10 题 + 实践应用 5 题 + 情景分析 3 题 + 行为面试 4 题
