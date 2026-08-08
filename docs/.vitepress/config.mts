@@ -40,6 +40,7 @@ export default defineConfig({
             items: [
               { text: 'Vue（2 & 3）', link: '/guide/vue' },
               { text: 'React', link: '/guide/react' },
+              { text: '数据可视化', link: '/guide/visualization' },
             ]
           },
           {
@@ -62,10 +63,10 @@ export default defineConfig({
           {
             text: '工程化',
             items: [
-              { text: '工程化（Vite / Webpack）', link: '/guide/engineering' },
+              { text: '工程化概述', link: '/guide/engineering' },
+              { text: '构建工具', link: '/guide/build-tools' },
               { text: '性能优化', link: '/guide/performance' },
               { text: '调试与监控', link: '/guide/debugging' },
-              { text: '数据可视化', link: '/guide/visualization' },
               { text: 'DevOps', link: '/guide/devops' },
             ]
           },
@@ -74,6 +75,12 @@ export default defineConfig({
             items: [
               { text: '权限控制 & 架构', link: '/guide/permission' },
               { text: 'Node.js & 数据库', link: '/guide/nodejs' },
+            ]
+          },
+          {
+            text: 'SSR 服务端渲染',
+            items: [
+              { text: 'SSR 服务端渲染', link: '/guide/ssr' },
             ]
           },
         ]
@@ -124,6 +131,7 @@ export default defineConfig({
           items: [
             { text: 'Vue（2 & 3）', link: '/guide/vue' },
             { text: 'React', link: '/guide/react' },
+            { text: '数据可视化（ECharts）', link: '/guide/visualization' },
           ]
         },
         {
@@ -149,10 +157,10 @@ export default defineConfig({
           text: '工程化',
           collapsed: false,
           items: [
-            { text: '工程化（Vite / Webpack）', link: '/guide/engineering' },
+            { text: '工程化概述（规范 / Monorepo）', link: '/guide/engineering' },
+            { text: '构建工具（Webpack / Vite / esbuild）', link: '/guide/build-tools' },
             { text: '性能优化', link: '/guide/performance' },
             { text: '调试与监控', link: '/guide/debugging' },
-            { text: '数据可视化（ECharts）', link: '/guide/visualization' },
             { text: 'DevOps（Nginx / Docker）', link: '/guide/devops' },
           ]
         },
@@ -162,6 +170,13 @@ export default defineConfig({
           items: [
             { text: '权限控制 & 架构设计', link: '/guide/permission' },
             { text: 'Node.js & 数据库', link: '/guide/nodejs' },
+          ]
+        },
+        {
+          text: 'SSR 服务端渲染',
+          collapsed: false,
+          items: [
+            { text: 'SSR 服务端渲染', link: '/guide/ssr' },
           ]
         },
       ],

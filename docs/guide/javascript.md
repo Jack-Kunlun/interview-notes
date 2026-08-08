@@ -1,11 +1,11 @@
 ---
 title: JavaScript 基础
-description: 由浅入深——数据类型、作用域闭包、this、原型链、ES6+、深浅拷贝、防抖节流、Promise、async/await、Proxy、手写实现
+description: 由浅入深——数据类型、类型转换、模块化、作用域闭包、this、原型链、new操作符、继承、深浅拷贝、防抖节流、柯里化、组合、记忆化、Promise、async/await、Proxy、大文件上传、手写实现
 ---
 
 # JavaScript 基础
 
-> 按知识依赖关系由浅入深排列：**语言基础 → 核心机制 → 实用技巧 → 异步编程 → 进阶特性 → 综合实战**。后一章依赖前一章，建议顺序阅读。
+> 按知识依赖关系由浅入深排列：**语言基础 → 核心机制 → 实用技巧 → 异步编程 → 进阶特性 → 综合实战 → 文件处理实战**。后一章依赖前一章，建议顺序阅读。
 
 ---
 
@@ -96,6 +96,118 @@ console.log(0 ?? 'fallback')             // 0 —— ?? 只拦截 null/undefined
 **踩过的坑**：用 `||` 给函数参数设默认值，把 `0` 和空字符串当成"未传"触发备用值，导致计算结果错误。修复：改用 `??` 或 ES6 默认参数语法 `function fn(count = 10) {}`——默认参数只对 `undefined` 触发，更精确。
 
 **项目选型**：箭头函数 vs 普通函数 → 需要自己的 `this`（Vue methods、原型方法）用普通函数；不需要 `this` 或需继承外层 `this`（React 回调、数组 map/filter）用箭头函数。团队建议：能用箭头的地方优先箭头——更短、没有 `arguments` 副作用。
+
+### 1.4 隐式类型转换
+
+JS 是弱类型语言，运算符会自动触发类型转换。理解转换规则是避免 `[] == ![]` 这类面试陷阱的前提。
+
+**ToPrimitive 抽象操作**：JS 引擎内部将对象转为原始值时，按以下顺序尝试：
+1. 若 `Symbol.toPrimitive` 存在，调用它（优先级最高）
+2. 否则根据 hint（`'number'` → `valueOf()` 优先；`'string'` → `toString()` 优先；`'default'` → 同 `'number'`）
+
+```js
+const obj = {
+  [Symbol.toPrimitive](hint) {
+    if (hint === 'number') return 42
+    if (hint === 'string') return 'hello'
+    return 'default'
+  }
+}
+console.log(+obj)       // 42      （hint='number'）
+console.log(`${obj}`)   // 'hello' （hint='string'）
+console.log(obj + '')   // 'default'（hint='default'）
+
+// Date 特例：hint 默认 'string'
+console.log(+new Date())  // 时间戳（hint='number' → valueOf()）
+```
+
+**`==` 比较规则**（面试重灾区）：
+
+| 类型组合 | 转换规则 | 示例 |
+|---------|---------|------|
+| 对象 vs 非对象 | 对象 → ToPrimitive | `[1] == 1` → `'1' == 1` → `1 == 1` → `true` |
+| 字符串 vs 数字 | 字符串 → 数字 | `'5' == 5` → `5 == 5` |
+| 布尔 vs 任意 | 布尔 → 数字 | `true == 2` → `1 == 2` → `false` |
+| null vs undefined | **互相相等**，不转换 | `null == undefined` → `true`；`null == 0` → `false` |
+| 同类型 | 不转换 | `'x' == 'x'` |
+
+```js
+// 面试陷阱解析
+console.log([] == ![])  // true
+// ![] → false（[] 是 truthy）→ [] == false → [] == 0（布尔转数字）
+// → '' == 0（[].toString() = ''）→ 0 == 0 → true
+
+console.log([] == 0)           // true
+console.log(null == 0)         // false（null 只与 undefined 宽松相等）
+console.log(undefined == null) // true
+```
+
+**`+` 运算符的特殊性**：任何一端是字符串或对象（先 ToPrimitive）→ 字符串拼接；两端都是数字/布尔 → 数字加法。
+
+```js
+console.log(1 + '2')      // '12'   （一端字符串 → 拼接）
+console.log(1 + 2 + '3')  // '33'   （先加后拼）
+console.log([] + {})      // '[object Object]'
+console.log(true + true)  // 2
+```
+
+### 1.5 浮点数精度
+
+JS 采用 IEEE 754 双精度浮点数，二进制无法精确表示 0.1 和 0.2（它们是无限循环小数），截断产生舍入误差：
+
+```js
+console.log(0.1 + 0.2)          // 0.30000000000000004
+console.log(0.1 + 0.2 === 0.3)  // false
+```
+
+| 解决方案 | 用法 | 适用场景 |
+|---------|------|---------|
+| 容差比较 | `Math.abs(a - b) < Number.EPSILON` | 一般计算 |
+| 整数化运算 | `(0.1 * 10 + 0.2 * 10) / 10` | 固定小数位 |
+| `toFixed` | `+(0.1 + 0.2).toFixed(2)` | 展示用 |
+| 第三方库 | `decimal.js` / `big.js` | 金融计算 |
+
+### 1.6 模块化：ESM vs CommonJS
+
+| | ESM（ES Modules） | CommonJS |
+|---|---|---|
+| 语法 | `import` / `export` | `require()` / `module.exports` |
+| 加载时机 | **编译时**静态分析 | **运行时**动态加载 |
+| 导出绑定 | **动态绑定**（引用，随源模块变化） | **值拷贝**（导出的是值的副本） |
+| Tree Shaking | ✅ | ❌ |
+| this 顶层 | `undefined` | 指向 `module.exports` |
+| 加载方式 | 异步 | 同步（阻塞） |
+
+```js
+// CommonJS：值拷贝 → count 变化不影响导入方
+// counter.js
+let count = 0
+module.exports = { count, increment: () => { count++ } }
+// main.js
+const { count, increment } = require('./counter')
+increment(); console.log(count)  // 0 ← 仍是 0！
+
+// ─── vs ───
+
+// ESM：动态绑定 → 导入方看到实时值
+// counter.mjs
+export let count = 0
+export const increment = () => { count++ }
+// main.mjs
+import { count, increment } from './counter.mjs'
+increment(); console.log(count)  // 1 ← 实时绑定
+```
+
+**动态 `import()`**：返回 Promise，支持按需加载和代码分割：
+
+```js
+button.onclick = async () => {
+  const { default: _ } = await import('lodash')
+  console.log(_.chunk([1, 2, 3, 4], 2))
+}
+```
+
+**循环引用**：CommonJS 返回部分导出（已执行部分，后续属性为 `undefined`）；ESM 通过"模块环境记录"建立动态绑定，执行时自然解析——`import` 拿到的是"活的引用"，不会出现 `undefined`。
 
 ---
 
@@ -215,6 +327,74 @@ p instanceof Object  // p.__proto__.__proto__ === Object.prototype → true
 
 **项目选型**：原型继承 vs ES6 class → 库/框架底层用原型链（动态灵活、运行时修改、混入 mixin），业务代码用 class（语法清晰、`super` 直白、TypeScript 支持好、符合主流开发习惯）。
 
+### 2.4 new 操作符原理
+
+`new Fn(...)` 做了四件事：
+
+1. 创建一个空对象
+2. 将该对象的 `__proto__` 指向构造函数的 `prototype`
+3. 以该对象为 `this` 执行构造函数
+4. 若构造函数返回对象则用返回值，否则返回该对象
+
+```js
+function myNew(Ctor, ...args) {
+  const obj = Object.create(Ctor.prototype)   // 1+2：创建对象 + 绑定原型
+  const result = Ctor.apply(obj, args)        // 3：以 obj 为 this 执行构造
+  return result instanceof Object ? result : obj  // 4：判断返回值
+}
+
+function Person(name) { this.name = name }
+Person.prototype.say = function() { return this.name }
+const p = myNew(Person, 'fenglan')
+console.log(p.say())            // 'fenglan'
+console.log(p instanceof Person) // true
+```
+
+> 面试追问：构造函数里 `return 1` 会怎样？→ 原始值被忽略，仍返回 `this`。只有 `return {}` / `return []` 等对象才替换。ES 规范 §9.2.2：`[[Construct]]` 只对 Object 类型返回值敏感。
+
+### 2.5 ES5 继承方式全景
+
+**原型链继承**：`Child.prototype = new Parent()`——所有实例共享引用属性，一改全改。
+
+```js
+function Parent() { this.colors = ['red'] }
+function Child() {}
+Child.prototype = new Parent()
+const c1 = new Child(); c1.colors.push('blue')
+const c2 = new Child(); console.log(c2.colors) // ['red', 'blue'] ← 共享了
+```
+
+**构造函数继承**：`Parent.call(this)`——解决引用共享，但方法不能复用（每个实例都新建一份）。
+
+**组合继承**：原型链 + 构造函数——最通用，但调了两次 Parent（`call` + `new`）。
+
+**寄生组合继承**（最终方案）：用 `Object.create` 只继承原型，不重复调用父构造函数：
+
+```js
+function Parent(name) { this.name = name }
+Parent.prototype.say = function() { return this.name }
+
+function Child(name, age) {
+  Parent.call(this, name)          // 继承属性
+  this.age = age
+}
+Child.prototype = Object.create(Parent.prototype) // 只继承原型
+Child.prototype.constructor = Child               // 修正 constructor
+
+const c = new Child('fenglan', 18)
+console.log(c.say())             // 'fenglan'
+console.log(c instanceof Parent) // true
+```
+
+| 方式 | 属性独立 | 方法复用 | 调父次数 | 推荐度 |
+|------|---------|---------|---------|-------|
+| 原型链继承 | ❌ 共享 | ✅ | 1 | ❌ |
+| 构造函数继承 | ✅ | ❌ 每实例建 | 1 | ❌ |
+| 组合继承 | ✅ | ✅ | **2** | ⚠️ |
+| 寄生组合继承 | ✅ | ✅ | 1 | ✅✅✅ |
+
+ES6 `class extends` 本质就是寄生组合继承的语法糖，额外处理了静态属性和 `super` 的调用链。
+
 ---
 
 ## 三、实用技巧
@@ -293,6 +473,110 @@ function throttle(fn, delay = 300) {
 **踩过的坑**：移动端滚动加载更多时用节流 300ms，但快速滑动时 `scrollTop` 在节流窗口内已大幅变化，闭包中捕获的旧值导致计算位置偏差，重复请求同一页。修复：在节流回调内重新获取最新 `scrollTop` 而非依赖闭包旧值；或用"标记位 + 请求完成后重置"替代节流。
 
 **项目选型**：debounce vs throttle → 关注"最终结果"（搜索建议、resize 重排）用 debounce；关注"过程可控"（滚动加载进度、滑动百分比上报）用 throttle。不确定时，lodash `_.throttle(fn, wait, { leading: true, trailing: true })` 是安全默认——覆盖头尾。
+
+### 3.3 函数柯里化（Currying）
+
+柯里化把多参函数转为一系列单参函数的链式调用：`f(a, b, c)` → `f(a)(b)(c)`。核心是递归收集参数，攒够了就执行。
+
+```js
+function curry(fn) {
+  return function curried(...args) {
+    if (args.length >= fn.length) return fn.apply(this, args)
+    return (...more) => curried(...args, ...more)
+  }
+}
+
+const add = curry((a, b, c) => a + b + c)
+console.log(add(1)(2)(3))    // 6
+console.log(add(1, 2)(3))    // 6
+console.log(add(1)(2, 3))    // 6
+```
+
+**实战场景**：日志函数固定前缀、表单校验规则复用：
+
+```js
+const log = curry((level, time, msg) => `[${level}] ${time} ${msg}`)
+const errorLog = log('ERROR')(new Date().toISOString())
+errorLog('连接超时')  // [ERROR] 2026-08-08T... 连接超时
+```
+
+### 3.4 偏函数（Partial Application）
+
+偏函数是柯里化的"懒人版"——预填部分参数，剩下的后面再给。`Function.prototype.bind` 本质上就是偏函数。
+
+```js
+function partial(fn, ...preset) {
+  return function (...later) {
+    return fn.apply(this, [...preset, ...later])
+  }
+}
+
+const multiply = (a, b, c) => a * b * c
+const double = partial(multiply, 2)        // 固定第一个参数为 2
+console.log(double(3, 4))                   // 24 (2*3*4)
+console.log(double(5, 6))                   // 60 (2*5*6)
+```
+
+### 3.5 函数组合（Compose / Pipe）
+
+把多个单参函数串联成一条流水线——上一个函数的输出是下一个的输入。`compose` 从右向左，`pipe` 从左向右。
+
+```js
+// compose：从右向左执行
+const compose = (...fns) => x => fns.reduceRight((v, fn) => fn(v), x)
+
+// pipe：从左向右执行
+const pipe = (...fns) => x => fns.reduce((v, fn) => fn(v), x)
+
+const add5 = x => x + 5
+const double = x => x * 2
+const square = x => x * x
+
+const process = compose(square, double, add5)
+console.log(process(3))  // square(double(add5(3))) = square(double(8)) = square(16) = 256
+
+const process2 = pipe(add5, double, square)
+console.log(process2(3)) // 256（结果相同）
+```
+
+**实战场景**：Redux 中间件、Lodash 的 `_.flow` / `_.flowRight`、数组/字符串处理链：
+
+```js
+const toSlug = pipe(
+  s => s.toLowerCase(),
+  s => s.replace(/[^a-z0-9]+/g, '-'),
+  s => s.replace(/^-|-$/g, '')
+)
+console.log(toSlug('Hello World!!!'))  // 'hello-world'
+```
+
+### 3.6 记忆化（Memoization）
+
+缓存函数计算结果，相同输入直接返回缓存值，避免重复计算。适合纯函数 + 计算昂贵的场景。
+
+```js
+function memoize(fn) {
+  const cache = new Map()
+  return function (...args) {
+    const key = JSON.stringify(args)
+    if (cache.has(key)) return cache.get(key)
+    const result = fn.apply(this, args)
+    cache.set(key, result)
+    return result
+  }
+}
+
+// 斐波那契：O(2^n) → O(n)
+const fib = memoize(function(n) {
+  if (n <= 1) return n
+  return fib(n - 1) + fib(n - 2)
+})
+console.log(fib(40))  // 102334155，瞬间出结果
+
+// 实战：React useMemo / Vue computed 的底层思想就是记忆化
+```
+
+> 面试追问：`JSON.stringify(args)` 做 key 有什么隐患？→ ① 参数有循环引用会报错；② `{a:1,b:2}` 和 `{b:2,a:1}` 算不同 key（需排序 key）；③ 大对象序列化慢。优化方案：限制缓存容量（LRU 淘汰）、用 `WeakMap` 对单参数场景做弱引用缓存。
 
 ---
 
@@ -963,3 +1247,117 @@ next()                         ← 首次调用
 **踩过的坑**：在 `forEach` 回调中使用 `await`，以为会串行执行，结果所有请求同时发出，服务器瞬时被打爆。根因：`forEach(cb)` 内部同步调用 `cb()`，不等待 Promise——5 个请求并发而非期望的串行。修复：改用 `for...of`（原生支持 await 串行），或用 `await Promise.all(arr.map(async ...))` 显式表达并发意图。
 
 **项目选型**：`async/await` vs `.then()` 链 → 多步顺序依赖、需清晰错误处理的场景用 `async/await`（一个 `try/catch` 包多个 `await`）；纯并发的简单场景用 `Promise.all().then()` 同样简洁。团队统一推荐 `async/await` + `try/catch` 风格。
+
+---
+
+## 七、文件处理实战
+
+### 7.1 大文件上传
+
+面试高频场景题，考察 File API、并发控制、错误恢复的全局设计能力。核心流程：
+
+```
+用户选文件 → 计算文件 hash → 询问服务端已传分片（秒传/断点）
+→ 只传未完成的分片 → 全部传完 → 通知服务端合并
+```
+
+**分片切割**：用 `Blob.slice()` 切成固定大小块（通常 1-5MB）：
+
+```js
+function createChunks(file, chunkSize = 2 * 1024 * 1024) {
+  const chunks = []
+  let start = 0
+  while (start < file.size) {
+    chunks.push(file.slice(start, start + chunkSize))
+    start += chunkSize
+  }
+  return chunks
+}
+```
+
+**文件 Hash**（秒传和断点续传的根基）：用 `SparkMD5` 或 Web Crypto API 算文件指纹：
+
+```js
+const chunk = file.slice(start, end)
+const buffer = await chunk.arrayBuffer()
+const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
+const hash = Array.from(new Uint8Array(hashBuffer))
+  .map(b => b.toString(16).padStart(2, '0')).join('')
+```
+
+**并发上传 + 断点续传**：
+
+```js
+async function uploadChunks(chunks, fileHash, onProgress) {
+  // 1. 询问服务端已传了哪些分片（断点续传）
+  const uploaded = await fetch(`/api/check?hash=${fileHash}`).then(r => r.json())
+  // 2. 只构建未传分片的上传任务
+  const tasks = chunks.map((chunk, i) => {
+    if (uploaded.includes(i)) return null
+    const form = new FormData()
+    form.append('chunk', chunk)
+    form.append('hash', fileHash)
+    form.append('index', i)
+    form.append('total', chunks.length)
+    return () => fetch('/api/upload', { method: 'POST', body: form })
+  })
+  // 3. 并发控制（3 个并行，避免浏览器连接数耗尽）
+  await parallelLimit(tasks.filter(Boolean), 3, onProgress)
+  // 4. 通知服务端合并分片
+  await fetch('/api/merge', {
+    method: 'POST',
+    body: JSON.stringify({ hash: fileHash, total: chunks.length }),
+    headers: { 'Content-Type': 'application/json' }
+  })
+}
+```
+
+**并发控制工具函数**：
+
+```js
+async function parallelLimit(tasks, limit, onProgress) {
+  let completed = 0
+  const running = new Set()
+  for (const task of tasks) {
+    const p = task().then(res => {
+      running.delete(p); completed++; onProgress?.(completed, tasks.length); return res
+    })
+    running.add(p)
+    if (running.size >= limit) await Promise.race(running) // 等最快完成再推下一个
+  }
+  await Promise.all(running) // 等剩余的全部完成
+}
+```
+
+| 关键点 | 方案 |
+|--------|------|
+| 秒传 | 文件 hash 命中 → 直接返回成功，零流量 |
+| 断点续传 | 从服务端拿已传分片列表，跳过已完成的 |
+| 并发控制 | 限制 3-5 个并行，避免浏览器连接数耗尽（同域 6 个上限） |
+| 进度 | `(已完成 / 总分片) * 100`，分片粒度即进度粒度 |
+| 失败重试 | 单分片失败重试 3 次，整体失败则降级串行 |
+| 大文件 hash | Web Worker 中计算，避免卡主线程；或用 `file.stream()` 增量 hash |
+| 内存 | `Blob.slice()` 不复制数据，零额外内存开销 |
+
+### 7.2 文件下载与 Blob
+
+```js
+// 下载后端返回的二进制数据
+async function download(url, filename) {
+  const res = await fetch(url)
+  const blob = await res.blob()
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(a.href)  // ⚠️ 必须释放，否则 blob: URL 常驻内存
+}
+
+// 纯前端生成并下载
+const csv = 'name,age\nfenglan,18'
+const blob = new Blob([csv], { type: 'text/csv' })
+const url = URL.createObjectURL(blob)
+// 同上：创建 <a> 触发下载 → revokeObjectURL
+```
+
+`URL.createObjectURL()` 创建指向 Blob/File 的临时 URL（格式 `blob:https://...`），**用完必须 `revokeObjectURL()`**，否则 Blob 不会被 GC，持续泄漏内存。

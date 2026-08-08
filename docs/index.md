@@ -46,6 +46,10 @@ features:
     title: React
     details: Hooks、Fiber 架构、Concurrent Mode、React 18 新特性
     link: /guide/react
+  - icon: 📊
+    title: 数据可视化
+    details: ECharts 核心配置、大屏性能优化
+    link: /guide/visualization
 
   # ── 浏览器与网络 ──
   - icon: 🌐
@@ -69,9 +73,13 @@ features:
 
   # ── 工程化 ──
   - icon: ⚙️
-    title: 工程化
-    details: Vite / Webpack 原理、Monorepo、Tree Shaking
+    title: 工程化概述
+    details: ESLint / Prettier / Husky、Monorepo、Turborepo 架构
     link: /guide/engineering
+  - icon: 🔧
+    title: 构建工具
+    details: Webpack / Vite / esbuild / Turbopack / Rspack 全解析
+    link: /guide/build-tools
   - icon: ⚡
     title: 性能优化
     details: 加载优化、运行时优化、Lighthouse、Web Vitals、Bundle 分析
@@ -80,10 +88,6 @@ features:
     title: 错误排查
     details: Chrome DevTools、SourceMap、Sentry、线上监控、移动端调试
     link: /guide/debugging
-  - icon: 📊
-    title: 数据可视化
-    details: ECharts 核心配置、大屏性能优化
-    link: /guide/visualization
   - icon: 🐳
     title: DevOps
     details: Nginx 配置、Docker 多阶段构建、CI/CD、部署流程
@@ -98,6 +102,12 @@ features:
     title: Node.js & 数据库
     details: Event Loop 六阶段、Stream/Cluster、NestJS、JWT
     link: /guide/nodejs
+
+  # ── SSR 服务端渲染 ──
+  - icon: 🖥️
+    title: SSR 服务端渲染
+    details: CSR/SSR/SSG/ISR、同构渲染、Next.js/Nuxt、流式渲染
+    link: /guide/ssr
 
   # ── 面试资源 ──
   - icon: 💬
