@@ -7,12 +7,11 @@ export default defineConfig({
   lang: 'zh-CN',
 
   head: [
-    ['meta', { name: 'theme-color', content: '#3eaf7c' }],
+    ['meta', { name: 'theme-color', content: '#3d8b5e' }],
   ],
 
   themeConfig: {
-    logo: '📚',
-    siteTitle: '前端面试笔记',
+    siteTitle: '风岚 · 前端面试笔记',
 
     // 顶部导航 —— 4 个独立栏目
     nav: [
@@ -220,6 +219,7 @@ export default defineConfig({
   vite: {
     build: {
       chunkSizeWarningLimit: 1000,
+      emptyOutDir: false,
     },
   },
 })

@@ -3,6 +3,7 @@ docs/.vitepress/dist
 docs/.vitepress/cache
 docs/.vitepress/*.timestamp-*.mjs
 docs/.vitepress/.temp
+docs/_dist
 .workbuddy
 .DS_Store
 *.log
