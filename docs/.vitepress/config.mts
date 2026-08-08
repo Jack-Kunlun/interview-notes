@@ -86,20 +86,13 @@ export default defineConfig({
         ]
       },
       {
-        text: '面试题',
+        text: '面试实战',
         items: [
-          { text: 'A 组：技术基础题', link: '/interview/tech-basics' },
-          { text: 'B 组：实践应用题', link: '/interview/practice' },
-          { text: 'C 组：情景分析题', link: '/interview/scenario' },
-          { text: '行为面试题', link: '/interview/behavioral' },
-        ]
-      },
-      {
-        text: '面试准备',
-        items: [
+          { text: '模拟面试题', link: '/interview/practice' },
+          { text: '行为面试题（STAR）', link: '/interview/behavioral' },
           { text: '常见问题 & 自我介绍', link: '/preparation/common-questions' },
           { text: '面试前检查清单', link: '/preparation/checklist' },
-          { text: '面试后跟进模板', link: '/preparation/follow-up' },
+          { text: '面试后跟进', link: '/preparation/follow-up' },
         ]
       },
       { text: '贡献笔记', link: '/contribute' },
@@ -183,20 +176,23 @@ export default defineConfig({
 
       '/interview/': [
         {
-          text: '模拟面试题',
+          text: '面试实战',
           items: [
-            { text: 'A 组：技术基础题（10题）', link: '/interview/tech-basics' },
-            { text: 'B 组：实践应用题（5题）', link: '/interview/practice' },
-            { text: 'C 组：情景分析题（3题）', link: '/interview/scenario' },
-            { text: '行为面试题（STAR）', link: '/interview/behavioral' },
+            { text: '模拟面试题', link: '/interview/practice' },
+            { text: '行为面试题（STAR 法则）', link: '/interview/behavioral' },
+            { text: '常见问题 & 自我介绍', link: '/preparation/common-questions' },
+            { text: '面试前检查清单', link: '/preparation/checklist' },
+            { text: '面试后跟进模板', link: '/preparation/follow-up' },
           ]
         }
       ],
 
       '/preparation/': [
         {
-          text: '面试准备',
+          text: '面试实战',
           items: [
+            { text: '模拟面试题', link: '/interview/practice' },
+            { text: '行为面试题（STAR 法则）', link: '/interview/behavioral' },
             { text: '常见问题 & 自我介绍', link: '/preparation/common-questions' },
             { text: '面试前检查清单', link: '/preparation/checklist' },
             { text: '面试后跟进模板', link: '/preparation/follow-up' },

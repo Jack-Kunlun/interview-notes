@@ -109,13 +109,13 @@ features:
     details: CSR/SSR/SSG/ISR、同构渲染、Next.js/Nuxt、流式渲染
     link: /guide/ssr
 
-  # ── 面试资源 ──
+  # ── 面试实战 ──
   - icon: 💬
     title: 模拟面试题
-    details: 技术基础 10 题 + 实践应用 5 题 + 情景分析 3 题 + 行为面试 4 题
-    link: /interview/tech-basics
-  - icon: ✅
-    title: 面试前检查清单
-    details: 技术准备、材料准备、心态准备一键 checklist
-    link: /preparation/checklist
+    details: 虚拟列表设计、性能排查、跨端兼容、低端机优化 + STAR 行为面试
+    link: /interview/practice
+  - icon: 📝
+    title: 面试准备
+    details: 自我介绍模板、常见问题、检查清单、面试后跟进模板
+    link: /preparation/common-questions
 ---
