@@ -1,6 +1,6 @@
 ---
 title: SSR 服务端渲染
-description: CSR/SSR/SSG/ISR 渲染模式、同构渲染、Next.js/Nuxt、流式渲染
+description: CSR/SSR/SSG/ISR 渲染模式、同构渲染、Next.js/Nuxt、流式渲染、SEO 优化实战
 ---
 
 # SSR 服务端渲染
@@ -235,7 +235,169 @@ const getUser = cache(async (id: string) => {
 
 ---
 
-## 六、选型与面试
+## 六、SEO 优化实战
+
+SSR/SSG 解决了"爬虫能不能看到内容"的问题。能不能排上名，还要做以下优化。
+
+### Meta 标签体系
+
+搜索引擎和社交平台通过 meta 标签理解页面内容：
+
+```html
+<!-- 基础 SEO -->
+<title>商品详情 - 皮蛋优选</title>
+<meta name="description" content="皮蛋优选官方商城，正品保障，7天无理由退换" />
+
+<!-- Open Graph（Facebook / LinkedIn / Telegram） -->
+<meta property="og:title" content="商品详情 - 皮蛋优选" />
+<meta property="og:description" content="..." />
+<meta property="og:image" content="https://cdn.example.com/og-image.jpg" />
+<meta property="og:url" content="https://example.com/products/123" />
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image" />
+```
+
+Next.js App Router 用 `generateMetadata` 动态生成，天然支持服务端数据：
+
+```tsx
+// app/products/[id]/page.tsx
+export async function generateMetadata({ params }) {
+  const product = await fetch(`/api/products/${params.id}`).then(r => r.json())
+  return {
+    title: `${product.name} - 皮蛋优选`,
+    description: product.summary,
+    openGraph: { images: [product.coverImage] },
+  }
+}
+```
+
+Nuxt 3 用 `useHead`：
+
+```vue
+<script setup lang="ts">
+const { data: product } = await useFetch(`/api/products/${route.params.id}`)
+useHead({
+  title: `${product.value.name} - 皮蛋优选`,
+  meta: [{ name: 'description', content: product.value.summary }],
+})
+</script>
+```
+
+> 动态路由的页面必须动态生成 meta，否则搜索引擎收录的是千篇一律的站点标题。面试常见："你做的电商站商品详情页 SEO 怎么做的？"
+
+### 结构化数据（JSON-LD）
+
+Google 通过 JSON-LD 识别页面类型——商品、文章、面包屑、FAQ 等——并在搜索结果中展示富结果（星级、价格、库存）。
+
+```tsx
+// app/products/[id]/page.tsx
+export default async function ProductPage({ params }) {
+  const product = await getProduct(params.id)
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'Product',
+            name: product.name,
+            image: product.images,
+            description: product.description,
+            offers: {
+              '@type': 'Offer',
+              price: product.price,
+              priceCurrency: 'CNY',
+              availability: product.inStock
+                ? 'https://schema.org/InStock'
+                : 'https://schema.org/OutOfStock',
+            },
+          }),
+        }}
+      />
+      <ProductDetail product={product} />
+    </>
+  )
+}
+```
+
+常用类型：`Article`（文章）、`BreadcrumbList`（面包屑）、`FAQPage`（FAQ 富结果）、`Organization`（品牌信息）。Next.js 社区有 `next-seo` / `schema-dts`，Nuxt 有 `@nuxtjs/robots` + `nuxt-schema-org`。
+
+### Sitemap & robots.txt
+
+Sitemap 告诉搜索引擎哪些页面需要抓取、更新频率、优先级：
+
+```tsx
+// app/sitemap.ts（Next.js App Router 内置）
+import { MetadataRoute } from 'next'
+
+export default function sitemap(): MetadataRoute.Sitemap {
+  return [
+    { url: 'https://example.com', lastModified: new Date(), changeFrequency: 'daily', priority: 1 },
+    { url: 'https://example.com/products', lastModified: new Date(), changeFrequency: 'weekly', priority: 0.8 },
+  ]
+}
+```
+
+Nuxt 用 `@nuxtjs/sitemap` 模块自动扫描路由。动态路由需要 `sitemap.urls()` 从 API 拉取 URL 列表。
+
+`robots.txt` 控制抓取范围：
+
+```tsx
+// app/robots.ts
+export default function robots(): MetadataRoute.Robots {
+  return {
+    rules: { userAgent: '*', allow: '/', disallow: ['/admin/', '/api/'] },
+    sitemap: 'https://example.com/sitemap.xml',
+  }
+}
+```
+
+### Canonical & hreflang
+
+**Canonical URL** 解决同一内容多个 URL 的重复索引问题——`example.com/products/123` 和 `example.com/products/123?ref=email` 指向同一页面时，搜索引擎不知道该收录哪个：
+
+```html
+<link rel="canonical" href="https://example.com/products/123" />
+```
+
+**hreflang** 标注多语言/多地区页面的对应关系：
+
+```html
+<link rel="alternate" hreflang="zh-CN" href="https://example.com/zh/products/123" />
+<link rel="alternate" hreflang="en" href="https://example.com/en/products/123" />
+<link rel="alternate" hreflang="x-default" href="https://example.com/products/123" />
+```
+
+Next.js `generateMetadata` 和 Nuxt `useHead` 都能动态注入这些标签。面试中问到"国际化站点怎么做 SEO"，hreflang 是关键词。
+
+### Core Web Vitals 与 SEO
+
+Google 将 CWV 作为排名信号：LCP ≤ 2.5s, INP ≤ 200ms, CLS ≤ 0.1。SSR 能直接改善 LCP（首屏直出 HTML），但 INP 和 CLS 仍需注意——水合阶段的长任务会阻塞 INP，动态内容异步加载导致的布局偏移影响 CLS。
+
+| 指标 | SSR 的作用 | 还需注意 |
+|------|-----------|---------|
+| **LCP** | 服务端直出 HTML，首屏内容立即可见 | 关键 CSS 内联、`<img>` 指定 `width/height` |
+| **INP** | 无明显帮助（水合本身是 JS 开销） | 拆分水合任务、Partial Hydration |
+| **CLS** | 无直接帮助 | `<img>` / `<video>` 预留尺寸、异步内容用 skeleton 占位 |
+
+### SPA SEO 兜底方案
+
+不用 SSR 的话少数场景可以救急，但效果有限：
+
+| 方案 | 原理 | 局限 |
+|------|------|------|
+| **Prerender** | 构建时对特定路由生成静态 HTML | 只能预渲染已知路由，动态路由不行 |
+| **Puppeteer 动态预渲染** | 检测爬虫 UA，用 Puppeteer 渲染完整 HTML | 延迟高（2-5s）、服务器负载大 |
+| **prerender.io** | 第三方预渲染服务 | 收费、非自有数据不适合 |
+
+> 预渲染只适合首页和少数落地页。大量动态页面的 SEO 需求，老老实实上 SSR/SSG。Puppeteer 方案是过渡期的妥协。
+
+---
+
+## 七、选型与面试
 
 ### 什么时候用 SSR
 
