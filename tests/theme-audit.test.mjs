@@ -13,6 +13,14 @@ test('allows 1px border hairlines, even px values, and rem values', () => {
   assert.deepEqual(findOddPixelValues(css), [])
 })
 
+test('homepage motion values avoid odd pixel units', () => {
+  const css = `
+    .VPFeature { transform: translateY(-0.25rem); border-radius: 0.75rem; }
+    .VPNavBar { border-bottom: 1px solid transparent; }
+  `
+  assert.deepEqual(findOddPixelValues(css), [])
+})
+
 test('rejects 1px outside borders and all other odd px values', () => {
   const findings = findOddPixelValues('.a{padding:1px 3px;border-radius:5px}')
   assert.deepEqual(findings.map(({ value }) => value), ['1px', '3px', '5px'])
