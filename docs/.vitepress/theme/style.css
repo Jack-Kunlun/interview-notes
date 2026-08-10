@@ -725,6 +725,8 @@ body {
   --fenglan-shadow-soft: 0 0.25rem 1.25rem rgba(0, 0, 0, 0.18);
   --fenglan-shadow-hover: 0 0.625rem 1.875rem rgba(0, 0, 0, 0.24);
   --fenglan-focus-ring: 0 0 0 0.125rem rgba(98, 169, 138, 0.24);
+  --fenglan-radius-sm: 0.5rem;
+  --fenglan-radius-md: 0.75rem;
 
   --vp-c-divider: rgba(180, 210, 195, 0.07);
 
