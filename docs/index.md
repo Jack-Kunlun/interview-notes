@@ -4,7 +4,7 @@ layout: home
 hero:
   name: "前端面试笔记"
   text: "风岚 · 7年前端经验"
-  tagline: Vue + React 双栈&nbsp;&nbsp;|&nbsp;&nbsp;企业级中后台 & 跨端&nbsp;&nbsp;|&nbsp;&nbsp;工程化 & 全栈
+  tagline: Vue + React 双栈 | 企业级中后台 & 跨端 | 工程化 & 全栈
   actions:
     - theme: brand
       text: 开始复习 →
