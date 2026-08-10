@@ -17,9 +17,19 @@ test('rejects 1px outside borders and all other odd px values', () => {
   assert.deepEqual(findings.map(({ value }) => value), ['1px', '3px', '5px'])
 })
 
+test('rejects fractional pixel values as complete lengths', () => {
+  const findings = findOddPixelValues('.a{gap:2.5px}')
+  assert.deepEqual(findings.map(({ value }) => value), ['2.5px'])
+})
+
 test('finds legacy palette values case-insensitively', () => {
   const findings = findForbiddenColors('.a{color:#3D8B5E}', ['#3d8b5e'])
   assert.equal(findings.length, 1)
+})
+
+test('ignores legacy palette values outside CSS declarations', () => {
+  const findings = findForbiddenColors('/* #3d8b5e */ .a{color:var(--x)}', ['#3d8b5e'])
+  assert.deepEqual(findings, [])
 })
 
 test('requires SVG presentation colors to inherit currentColor', () => {

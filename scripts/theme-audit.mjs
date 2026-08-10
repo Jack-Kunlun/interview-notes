@@ -54,12 +54,12 @@ function declarations(cssText) {
 export function findOddPixelValues(cssText) {
   const findings = []
   for (const declaration of declarations(cssText)) {
-    const expression = /-?\d+px\b/gi
+    const expression = /-?(?:\d+(?:\.\d+)?|\.\d+)px\b/gi
     let match
     while ((match = expression.exec(declaration.value))) {
-      const pixels = Number.parseInt(match[0], 10)
+      const pixels = Number.parseFloat(match[0])
       const isBorderHairline = declaration.property.startsWith('border') && pixels === 1
-      if (!isBorderHairline && Math.abs(pixels) % 2 === 1) {
+      if (!isBorderHairline && (!Number.isInteger(pixels) || Math.abs(pixels) % 2 === 1)) {
         findings.push(finding('odd-pixel-value', match[0], cssText, declaration.valueIndex + match.index))
       }
     }
@@ -71,11 +71,14 @@ export function findForbiddenColors(cssText, colors) {
   const forbidden = new Set(colors.map((color) => color.toLowerCase()))
   const findings = []
   const expression = /#[0-9a-f]{3,8}\b/gi
-  let match
-  while ((match = expression.exec(cssText))) {
-    if (forbidden.has(match[0].toLowerCase())) {
-      findings.push(finding('forbidden-color', match[0], cssText, match.index))
+  for (const declaration of declarations(cssText)) {
+    let match
+    while ((match = expression.exec(declaration.value))) {
+      if (forbidden.has(match[0].toLowerCase())) {
+        findings.push(finding('forbidden-color', match[0], cssText, declaration.valueIndex + match.index))
+      }
     }
+    expression.lastIndex = 0
   }
   return findings
 }
