@@ -34,6 +34,26 @@ test('homepage focus indicators remain visible through hover states', () => {
   assert.ok(brandHoverFocus > brandHover, 'brand hover+focus must override the later hover shadow')
 })
 
+test('level-1 sidebar selectors match VitePress active ancestors and use semantic tokens', () => {
+  const css = readFileSync(new URL('../docs/.vitepress/theme/style.css', import.meta.url), 'utf8')
+  const inactiveText = css.match(
+    /\.VPSidebarItem\.level-1 > \.item > \.link > \.text \{[^}]+\}/,
+  )?.[0] ?? ''
+  const activeLink = css.match(
+    /\.VPSidebarItem\.level-1\.is-active > \.item > \.link \{[^}]+\}/,
+  )?.[0] ?? ''
+  const activeText = css.match(
+    /\.VPSidebarItem\.level-1\.is-active > \.item > \.link > \.text \{[^}]+\}/,
+  )?.[0] ?? ''
+
+  assert.match(inactiveText, /color: var\(--fenglan-text-secondary\)/)
+  assert.match(activeLink, /background: var\(--fenglan-brand-soft\)/)
+  assert.match(activeLink, /border-left: 0\.125rem solid var\(--fenglan-brand\)/)
+  assert.match(activeText, /color: var\(--fenglan-brand\)/)
+  assert.doesNotMatch(css, /\.VPSidebarItem\.level-1[^\{]*\.link\.active/)
+  assert.doesNotMatch(css, /\.VPSidebarItem\.level-1[^}]+\{[^}]*color:\s*#5F6963/i)
+})
+
 test('rejects 1px outside borders and all other odd px values', () => {
   const findings = findOddPixelValues('.a{padding:1px 3px;border-radius:5px}')
   assert.deepEqual(findings.map(({ value }) => value), ['1px', '3px', '5px'])

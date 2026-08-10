@@ -635,24 +635,14 @@ body {
 }
 
 /* 侧边栏链接 */
-.VPSidebarItem.level-1 .link .text {
+.VPSidebarItem.level-1 > .item > .link > .text {
   font-size: 14px;
-  color: #5F6963;
+  color: var(--fenglan-text-secondary);
 }
 
 /* 活跃项 */
-.VPSidebarItem.level-1 .link.active {
-  border-left: 0.1875rem solid var(--fenglan-brand);
-  padding-left: calc(var(--vp-sidebar-item-padding-x) - 0.1875rem);
-  background: rgba(47, 111, 89, 0.05);
-}
-
-.VPSidebarItem.level-1 .link.active .text {
-  color: #2F6F59;
-}
-
-.VPSidebarItem .link:hover .text {
-  color: #2F6F59;
+.VPSidebarItem.level-1 > .item > .link:hover > .text {
+  color: var(--fenglan-brand);
 }
 
 
@@ -1258,11 +1248,11 @@ body {
 
 .VPSidebarItem .link:hover .text,
 .VPSidebarItem .link:focus-visible .text,
-.VPSidebarItem .link.active .text {
+.VPSidebarItem.level-1.is-active > .item > .link > .text {
   color: var(--fenglan-brand);
 }
 
-.VPSidebarItem .link.active {
+.VPSidebarItem.level-1.is-active > .item > .link {
   padding-left: calc(var(--vp-sidebar-item-padding-x) - 0.125rem);
   background: var(--fenglan-brand-soft);
   border-left: 0.125rem solid var(--fenglan-brand);
