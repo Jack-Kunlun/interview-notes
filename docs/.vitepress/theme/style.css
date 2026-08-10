@@ -437,7 +437,8 @@ body {
 }
 
 .VPHero .actions .VPButton:focus-visible {
-  outline: none;
+  outline: 0.125rem solid var(--fenglan-brand);
+  outline-offset: 0.1875rem;
   box-shadow: var(--fenglan-focus-ring);
 }
 
@@ -452,6 +453,11 @@ body {
   background: var(--fenglan-brand-hover);
   box-shadow: var(--fenglan-shadow-hover);
   transform: translateY(-0.125rem);
+}
+
+.VPHero .actions .VPButton.brand:hover:focus-visible {
+  outline-color: var(--fenglan-brand-hover);
+  box-shadow: var(--fenglan-shadow-hover), var(--fenglan-focus-ring);
 }
 
 .VPHero .actions .VPButton.alt {
@@ -596,7 +602,8 @@ body {
 }
 
 .VPNavBarSearch .DocSearch-Button:focus-visible {
-  outline: none;
+  outline: 0.125rem solid var(--fenglan-brand);
+  outline-offset: 0.1875rem;
   border-color: var(--fenglan-border-interactive);
   box-shadow: var(--fenglan-focus-ring);
 }

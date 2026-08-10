@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import {
   findFixedSvgColors,
   findForbiddenColors,
@@ -19,6 +20,18 @@ test('homepage motion values avoid odd pixel units', () => {
     .VPNavBar { border-bottom: 1px solid transparent; }
   `
   assert.deepEqual(findOddPixelValues(css), [])
+})
+
+test('homepage focus indicators remain visible through hover states', () => {
+  const css = readFileSync(new URL('../docs/.vitepress/theme/style.css', import.meta.url), 'utf8')
+  const heroFocus = css.match(/\.VPHero \.actions \.VPButton:focus-visible \{[^}]+\}/)?.[0] ?? ''
+  const searchFocus = css.match(/\.VPNavBarSearch \.DocSearch-Button:focus-visible \{[^}]+\}/)?.[0] ?? ''
+  const brandHover = css.lastIndexOf('.VPHero .actions .VPButton.brand:hover {')
+  const brandHoverFocus = css.lastIndexOf('.VPHero .actions .VPButton.brand:hover:focus-visible {')
+
+  assert.match(heroFocus, /outline: 0\.125rem solid var\(--fenglan-brand\)/)
+  assert.match(searchFocus, /outline: 0\.125rem solid var\(--fenglan-brand\)/)
+  assert.ok(brandHoverFocus > brandHover, 'brand hover+focus must override the later hover shadow')
 })
 
 test('rejects 1px outside borders and all other odd px values', () => {
