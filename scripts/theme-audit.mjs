@@ -145,7 +145,8 @@ export function runAudit(scope = 'all') {
   return findings
 }
 
-function parseScope(args) {
+export function parseScope(args) {
+  if (args[0] === '--') args = args.slice(1)
   if (args.length === 0) return 'all'
   if (args.length === 2 && args[0] === '--scope' && ['all', 'tokens', 'css', 'icons'].includes(args[1])) {
     return args[1]

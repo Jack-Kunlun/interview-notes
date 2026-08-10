@@ -5,6 +5,7 @@ import {
   findForbiddenColors,
   findMissingTokens,
   findOddPixelValues,
+  parseScope,
 } from '../scripts/theme-audit.mjs'
 
 test('allows 1px border hairlines, even px values, and rem values', () => {
@@ -43,4 +44,8 @@ test('reports missing semantic tokens', () => {
     '--fenglan-text-primary',
   ])
   assert.deepEqual(findings.map(({ value }) => value), ['--fenglan-text-primary'])
+})
+
+test('accepts a package-manager argument sentinel before a scope', () => {
+  assert.equal(parseScope(['--', '--scope', 'icons']), 'icons')
 })
