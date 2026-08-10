@@ -5,32 +5,51 @@
 
 /* ---------- Design Tokens ---------- */
 :root {
+  --fenglan-surface-page: #f7f7f2;
+  --fenglan-surface-subtle: #f1f2ed;
+  --fenglan-surface-paper: rgba(255, 255, 255, 0.72);
+  --fenglan-surface-elevated: rgba(250, 250, 247, 0.92);
+  --fenglan-text-primary: #202522;
+  --fenglan-text-secondary: #5f6963;
+  --fenglan-text-muted: #8b938e;
+  --fenglan-border-subtle: rgba(38, 58, 48, 0.10);
+  --fenglan-border-interactive: rgba(47, 111, 89, 0.36);
+  --fenglan-brand: #2f6f59;
+  --fenglan-brand-hover: #275d4b;
+  --fenglan-brand-soft: #e7efea;
+  --fenglan-accent-tea: #9b7b4f;
+  --fenglan-shadow-soft: 0 0.25rem 1.25rem rgba(32, 50, 41, 0.04);
+  --fenglan-shadow-hover: 0 0.625rem 1.875rem rgba(32, 50, 41, 0.08);
+  --fenglan-focus-ring: 0 0 0 0.125rem rgba(47, 111, 89, 0.20);
+  --fenglan-radius-sm: 0.5rem;
+  --fenglan-radius-md: 0.75rem;
+
   /* 品牌色 — 岚青 / 竹青 */
-  --vp-c-brand-1: #2F6F59;
-  --vp-c-brand-2: #275D4B;
-  --vp-c-brand-3: #1F4A3C;
-  --vp-c-brand-soft: rgba(47, 111, 89, 0.06);
+  --vp-c-brand-1: var(--fenglan-brand);
+  --vp-c-brand-2: var(--fenglan-brand-hover);
+  --vp-c-brand-3: var(--fenglan-brand-hover);
+  --vp-c-brand-soft: var(--fenglan-brand-soft);
 
   /* 背景 — 宣纸体系 */
-  --vp-c-bg: #F7F7F2;
-  --vp-c-bg-alt: #F1F2ED;
-  --vp-c-bg-elv: rgba(255, 255, 255, 0.72);
-  --vp-c-bg-soft: #F4F5F0;
+  --vp-c-bg: var(--fenglan-surface-page);
+  --vp-c-bg-alt: var(--fenglan-surface-subtle);
+  --vp-c-bg-elv: var(--fenglan-surface-elevated);
+  --vp-c-bg-soft: var(--fenglan-surface-subtle);
 
   /* 文字 — 墨色 */
-  --vp-c-text-1: #202522;
-  --vp-c-text-2: #5F6963;
-  --vp-c-text-3: #8B938E;
+  --vp-c-text-1: var(--fenglan-text-primary);
+  --vp-c-text-2: var(--fenglan-text-secondary);
+  --vp-c-text-3: var(--fenglan-text-muted);
 
   /* 边框 & 分割 — 淡墨线 */
-  --vp-c-border: rgba(38, 58, 48, 0.10);
+  --vp-c-border: var(--fenglan-border-subtle);
   --vp-c-divider: rgba(38, 58, 48, 0.08);
-  --vp-c-gutter: rgba(38, 58, 48, 0.10);
+  --vp-c-gutter: var(--fenglan-border-subtle);
 
   /* 阴影 — 水墨晕染（极淡） */
-  --vp-shadow-1: 0 1px 2px rgba(32, 50, 41, 0.03);
-  --vp-shadow-2: 0 3px 12px rgba(32, 50, 41, 0.04);
-  --vp-shadow-3: 0 6px 20px rgba(32, 50, 41, 0.05);
+  --vp-shadow-1: var(--fenglan-shadow-soft);
+  --vp-shadow-2: var(--fenglan-shadow-soft);
+  --vp-shadow-3: var(--fenglan-shadow-hover);
 
   /* 字体 */
   --vp-font-family-base: 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB',
@@ -39,35 +58,35 @@
     'SF Mono', Menlo, Consolas, monospace;
 
   /* 代码块 */
-  --vp-code-block-bg: #F1F3EE;
-  --vp-code-block-color: #202A24;
-  --vp-code-block-divider-color: rgba(38, 58, 48, 0.08);
-  --vp-code-line-highlight-color: rgba(47, 111, 89, 0.06);
-  --vp-code-line-diff-add-color: rgba(47, 111, 89, 0.10);
+  --vp-code-block-bg: var(--fenglan-surface-subtle);
+  --vp-code-block-color: var(--fenglan-text-primary);
+  --vp-code-block-divider-color: var(--fenglan-border-subtle);
+  --vp-code-line-highlight-color: var(--fenglan-brand-soft);
+  --vp-code-line-diff-add-color: var(--fenglan-brand-soft);
   --vp-code-line-diff-remove-color: rgba(155, 100, 80, 0.08);
-  --vp-code-copy-code-hover-bg: rgba(47, 111, 89, 0.10);
+  --vp-code-copy-code-hover-bg: var(--fenglan-brand-soft);
   --vp-code-copy-code-active-text: var(--vp-c-brand-1);
   --vp-code-tab-text-color: var(--vp-c-text-3);
   --vp-code-tab-active-text-color: var(--vp-c-text-1);
-  --vp-code-tab-bg: #EBEEE9;
-  --vp-code-tab-active-bg: #F1F3EE;
-  --vp-code-tab-bar-bg: #EBEEE9;
+  --vp-code-tab-bg: var(--fenglan-surface-elevated);
+  --vp-code-tab-active-bg: var(--fenglan-surface-subtle);
+  --vp-code-tab-bar-bg: var(--fenglan-surface-elevated);
 
   /* 行内代码 */
-  --vp-code-color: #2F6F59;
+  --vp-code-color: var(--fenglan-brand);
 
   /* 按钮 */
-  --vp-button-brand-bg: #2F6F59;
-  --vp-button-brand-hover-bg: #275D4B;
-  --vp-button-brand-active-bg: #1F4A3C;
+  --vp-button-brand-bg: var(--fenglan-brand);
+  --vp-button-brand-hover-bg: var(--fenglan-brand-hover);
+  --vp-button-brand-active-bg: var(--fenglan-brand-hover);
   --vp-button-brand-text: #FFFFFF;
   --vp-button-brand-border: transparent;
   --vp-button-alt-bg: transparent;
-  --vp-button-alt-hover-bg: rgba(47, 111, 89, 0.06);
-  --vp-button-alt-text: #2F6F59;
-  --vp-button-alt-hover-text: #275D4B;
-  --vp-button-alt-border: rgba(47, 111, 89, 0.45);
-  --vp-button-alt-hover-border: rgba(47, 111, 89, 0.65);
+  --vp-button-alt-hover-bg: var(--fenglan-brand-soft);
+  --vp-button-alt-text: var(--fenglan-brand);
+  --vp-button-alt-hover-text: var(--fenglan-brand-hover);
+  --vp-button-alt-border: var(--fenglan-border-interactive);
+  --vp-button-alt-hover-border: var(--fenglan-border-interactive);
 
   /* Hero 标题渐变 */
   --vp-home-hero-name-color: transparent;
@@ -76,8 +95,8 @@
   /* 自定义容器 */
   --vp-c-tip-1: #54766A;
   --vp-c-tip-2: rgba(84, 118, 106, 0.06);
-  --vp-c-tip-3: #2F6F59;
-  --vp-c-warning-1: #9B7B4F;
+  --vp-c-tip-3: var(--fenglan-brand);
+  --vp-c-warning-1: var(--fenglan-accent-tea);
   --vp-c-warning-2: rgba(155, 123, 79, 0.06);
   --vp-c-warning-3: #7D623E;
   --vp-c-danger-1: #B06A6A;
@@ -91,13 +110,13 @@
   --vp-c-details-3: #707062;
 
   /* 品牌圆角 */
-  --ink-radius: 8px;
+  --ink-radius: var(--fenglan-radius-sm);
 }
 
 
 /* ---------- 页面背景 — 宣纸 + 极淡山岚 ---------- */
 body {
-  background: #F7F7F2;
+  background: var(--fenglan-surface-page);
 }
 
 /* 极淡远山雾气 — 仅首页 Hero 区域 */
@@ -690,56 +709,34 @@ body {
    ============================================ */
 
 .dark {
-  --vp-c-bg: #111714;
-  --vp-c-bg-alt: #151C18;
-  --vp-c-bg-elv: #18201C;
-  --vp-c-bg-soft: #131916;
+  --fenglan-surface-page: #111714;
+  --fenglan-surface-subtle: #151c18;
+  --fenglan-surface-paper: #18201c;
+  --fenglan-surface-elevated: rgba(24, 32, 28, 0.96);
+  --fenglan-text-primary: #e8ece9;
+  --fenglan-text-secondary: #9ba69f;
+  --fenglan-text-muted: #748078;
+  --fenglan-border-subtle: rgba(180, 210, 195, 0.10);
+  --fenglan-border-interactive: rgba(98, 169, 138, 0.38);
+  --fenglan-brand: #62a98a;
+  --fenglan-brand-hover: #76b99b;
+  --fenglan-brand-soft: rgba(98, 169, 138, 0.10);
+  --fenglan-accent-tea: #b6975a;
+  --fenglan-shadow-soft: 0 0.25rem 1.25rem rgba(0, 0, 0, 0.18);
+  --fenglan-shadow-hover: 0 0.625rem 1.875rem rgba(0, 0, 0, 0.24);
+  --fenglan-focus-ring: 0 0 0 0.125rem rgba(98, 169, 138, 0.24);
 
-  --vp-c-text-1: #E8ECE9;
-  --vp-c-text-2: #9BA69F;
-  --vp-c-text-3: #6E7972;
-
-  --vp-c-brand-1: #62A98A;
-  --vp-c-brand-2: #509076;
-  --vp-c-brand-3: #3F7860;
-  --vp-c-brand-soft: rgba(98, 169, 138, 0.08);
-
-  --vp-c-border: rgba(180, 210, 195, 0.10);
   --vp-c-divider: rgba(180, 210, 195, 0.07);
-  --vp-c-gutter: rgba(180, 210, 195, 0.10);
-
-  --vp-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.25);
-  --vp-shadow-2: 0 3px 12px rgba(0, 0, 0, 0.28);
-  --vp-shadow-3: 0 6px 20px rgba(0, 0, 0, 0.30);
-
-  --vp-code-block-bg: #151C18;
-  --vp-code-block-color: #E0E5E0;
-  --vp-code-tab-bg: #1C231E;
-  --vp-code-tab-active-bg: #151C18;
-  --vp-code-tab-bar-bg: #1C231E;
-
-  --vp-code-color: #62A98A;
-
-  --vp-button-brand-bg: #62A98A;
-  --vp-button-brand-hover-bg: #509076;
-  --vp-button-brand-active-bg: #3F7860;
-  --vp-button-alt-bg: transparent;
-  --vp-button-alt-hover-bg: rgba(98, 169, 138, 0.08);
-  --vp-button-alt-text: #62A98A;
-  --vp-button-alt-hover-text: #6FBC99;
-  --vp-button-alt-border: rgba(98, 169, 138, 0.35);
-  --vp-button-alt-hover-border: rgba(98, 169, 138, 0.55);
 
   --vp-home-hero-name-background: linear-gradient(135deg, #509076 0%, #62A98A 50%, #7FCCA5 100%);
 
-  --vp-c-warning-1: #B6975A;
   --vp-c-warning-3: #8E7745;
   --vp-c-danger-1: #C47A7A;
   --vp-c-danger-3: #9E6060;
 }
 
 .dark body {
-  background: #111714;
+  background: var(--fenglan-surface-page);
 }
 
 .dark .VPNavBar.has-sidebar,
