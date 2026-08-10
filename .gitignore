@@ -5,5 +5,7 @@ docs/.vitepress/*.timestamp-*.mjs
 docs/.vitepress/.temp
 docs/_dist
 .workbuddy
+.worktrees/
+.superpowers/
 .DS_Store
 *.log
