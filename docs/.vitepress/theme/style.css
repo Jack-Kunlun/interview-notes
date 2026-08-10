@@ -11,7 +11,8 @@
   --fenglan-surface-elevated: rgba(250, 250, 247, 0.92);
   --fenglan-text-primary: #202522;
   --fenglan-text-secondary: #5f6963;
-  --fenglan-text-muted: #8b938e;
+  --fenglan-text-muted: #66706a;
+  --fenglan-text-on-brand: #ffffff;
   --fenglan-border-subtle: rgba(38, 58, 48, 0.10);
   --fenglan-border-interactive: rgba(47, 111, 89, 0.36);
   --fenglan-brand: #2f6f59;
@@ -79,7 +80,7 @@
   --vp-button-brand-bg: var(--fenglan-brand);
   --vp-button-brand-hover-bg: var(--fenglan-brand-hover);
   --vp-button-brand-active-bg: var(--fenglan-brand-hover);
-  --vp-button-brand-text: #FFFFFF;
+  --vp-button-brand-text: var(--fenglan-text-on-brand);
   --vp-button-brand-border: transparent;
   --vp-button-alt-bg: transparent;
   --vp-button-alt-hover-bg: var(--fenglan-brand-soft);
@@ -286,12 +287,116 @@ body {
   border-radius: var(--fenglan-radius-sm);
 }
 
+.VPFeature .box::after {
+  content: '';
+  position: absolute;
+  top: 2.125rem;
+  left: 2.125rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  background: var(--fenglan-brand);
+  -webkit-mask-image: var(--fenglan-feature-mask);
+  mask-image: var(--fenglan-feature-mask);
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  pointer-events: none;
+}
+
+.VPFeature .box:has(> .VPImage[src$='/icons/js.svg']) {
+  --fenglan-feature-mask: url('/icons/js.svg');
+}
+
+.VPFeature .box:has(> .VPImage[src$='/icons/ts.svg']) {
+  --fenglan-feature-mask: url('/icons/ts.svg');
+}
+
+.VPFeature .box:has(> .VPImage[src$='/icons/algo.svg']) {
+  --fenglan-feature-mask: url('/icons/algo.svg');
+}
+
+.VPFeature .box:has(> .VPImage[src$='/icons/css.svg']) {
+  --fenglan-feature-mask: url('/icons/css.svg');
+}
+
+.VPFeature .box:has(> .VPImage[src$='/icons/css-deep.svg']) {
+  --fenglan-feature-mask: url('/icons/css-deep.svg');
+}
+
+.VPFeature .box:has(> .VPImage[src$='/icons/vue.svg']) {
+  --fenglan-feature-mask: url('/icons/vue.svg');
+}
+
+.VPFeature .box:has(> .VPImage[src$='/icons/react.svg']) {
+  --fenglan-feature-mask: url('/icons/react.svg');
+}
+
+.VPFeature .box:has(> .VPImage[src$='/icons/chart.svg']) {
+  --fenglan-feature-mask: url('/icons/chart.svg');
+}
+
+.VPFeature .box:has(> .VPImage[src$='/icons/ssr.svg']) {
+  --fenglan-feature-mask: url('/icons/ssr.svg');
+}
+
+.VPFeature .box:has(> .VPImage[src$='/icons/mobile.svg']) {
+  --fenglan-feature-mask: url('/icons/mobile.svg');
+}
+
+.VPFeature .box:has(> .VPImage[src$='/icons/engineering.svg']) {
+  --fenglan-feature-mask: url('/icons/engineering.svg');
+}
+
+.VPFeature .box:has(> .VPImage[src$='/icons/build.svg']) {
+  --fenglan-feature-mask: url('/icons/build.svg');
+}
+
+.VPFeature .box:has(> .VPImage[src$='/icons/perf.svg']) {
+  --fenglan-feature-mask: url('/icons/perf.svg');
+}
+
+.VPFeature .box:has(> .VPImage[src$='/icons/debug.svg']) {
+  --fenglan-feature-mask: url('/icons/debug.svg');
+}
+
+.VPFeature .box:has(> .VPImage[src$='/icons/devops.svg']) {
+  --fenglan-feature-mask: url('/icons/devops.svg');
+}
+
+.VPFeature .box:has(> .VPImage[src$='/icons/browser.svg']) {
+  --fenglan-feature-mask: url('/icons/browser.svg');
+}
+
+.VPFeature .box:has(> .VPImage[src$='/icons/network.svg']) {
+  --fenglan-feature-mask: url('/icons/network.svg');
+}
+
+.VPFeature .box:has(> .VPImage[src$='/icons/node.svg']) {
+  --fenglan-feature-mask: url('/icons/node.svg');
+}
+
+.VPFeature .box:has(> .VPImage[src$='/icons/auth.svg']) {
+  --fenglan-feature-mask: url('/icons/auth.svg');
+}
+
+.VPFeature .box:has(> .VPImage[src$='/icons/interview.svg']) {
+  --fenglan-feature-mask: url('/icons/interview.svg');
+}
+
+.VPFeature .box:has(> .VPImage[src$='/icons/prep.svg']) {
+  --fenglan-feature-mask: url('/icons/prep.svg');
+}
+
 .VPFeature .VPImage {
   position: relative;
   display: block;
   width: 1.5rem;
   height: 1.5rem;
   margin: 0.625rem 0.625rem 1.625rem;
+  opacity: 0;
   object-fit: contain;
 }
 
@@ -437,6 +542,7 @@ body {
   --fenglan-text-primary: #e8ece9;
   --fenglan-text-secondary: #9ba69f;
   --fenglan-text-muted: #76827a;
+  --fenglan-text-on-brand: #111714;
   --fenglan-border-subtle: rgba(180, 210, 195, 0.10);
   --fenglan-border-interactive: rgba(98, 169, 138, 0.38);
   --fenglan-brand: #62a98a;
@@ -461,13 +567,6 @@ body {
 .dark .VPHero::after {
   opacity: 0.05;
 }
-
-.dark .VPFeature .icon img,
-.dark .VPFeature .VPImage {
-  filter: invert(1);
-  opacity: 0.72;
-}
-
 
 /* ---------- Fenglan reading and utility surfaces ---------- */
 .VPMenu {

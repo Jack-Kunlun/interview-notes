@@ -22,6 +22,27 @@ test('homepage motion values avoid odd pixel units', () => {
   assert.deepEqual(findOddPixelValues(css), [])
 })
 
+test('every configured homepage SVG is presented through the brand-colored feature mask', () => {
+  const homepage = readFileSync(new URL('../docs/index.md', import.meta.url), 'utf8')
+  const css = readFileSync(new URL('../docs/.vitepress/theme/style.css', import.meta.url), 'utf8')
+  const iconPaths = [...new Set(homepage.match(/^\s+src:\s+(\/icons\/[^\s]+\.svg)$/gm)?.map(
+    (line) => line.match(/\/icons\/[^\s]+\.svg/)?.[0],
+  ) ?? [])]
+  const maskedIconPaths = [...css.matchAll(
+    /--fenglan-feature-mask:\s*url\(['"]?(\/icons\/[^'"\)]+\.svg)['"]?\)/g,
+  )].map((match) => match[1])
+  const imageRule = css.match(/\.VPFeature \.VPImage \{[^}]+\}/)?.[0] ?? ''
+  const maskRule = css.match(/\.VPFeature \.box::after \{[^}]+\}/)?.[0] ?? ''
+
+  assert.ok(iconPaths.length > 0, 'homepage fixture must include external SVG feature icons')
+  assert.deepEqual(new Set(maskedIconPaths), new Set(iconPaths))
+  assert.match(imageRule, /opacity:\s*0/)
+  assert.match(maskRule, /background:\s*var\(--fenglan-brand\)/)
+  assert.match(maskRule, /mask-image:\s*var\(--fenglan-feature-mask\)/)
+  assert.match(maskRule, /-webkit-mask-image:\s*var\(--fenglan-feature-mask\)/)
+  assert.doesNotMatch(css, /\.dark \.VPFeature[^}]+filter:\s*invert/)
+})
+
 test('homepage focus indicators remain visible through hover states', () => {
   const css = readFileSync(new URL('../docs/.vitepress/theme/style.css', import.meta.url), 'utf8')
   const heroFocus = css.match(/\.VPHero \.actions \.VPButton:focus-visible \{[^}]+\}/)?.[0] ?? ''
@@ -102,6 +123,56 @@ test('Dark muted text keeps WCAG AA contrast against the page surface', () => {
   const ratio = (luminance(muted) + 0.05) / (luminance(page) + 0.05)
 
   assert.ok(ratio >= 4.5, `Dark muted contrast must be at least 4.5:1, received ${ratio}`)
+})
+
+test('Light muted text keeps WCAG AA contrast against the page surface', () => {
+  const css = readFileSync(new URL('../docs/.vitepress/theme/style.css', import.meta.url), 'utf8')
+  const rootTokens = css.match(/:root \{([^}]+)\}/)?.[1] ?? ''
+  const muted = rootTokens.match(/--fenglan-text-muted:\s*(#[0-9a-f]{6})/i)?.[1] ?? ''
+  const page = rootTokens.match(/--fenglan-surface-page:\s*(#[0-9a-f]{6})/i)?.[1] ?? ''
+  const luminance = (hex) => {
+    const channels = hex.slice(1).match(/../g)?.map((pair) => Number.parseInt(pair, 16) / 255) ?? []
+    const linear = channels.map((channel) =>
+      channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4,
+    )
+    return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+  }
+  const lighter = Math.max(luminance(muted), luminance(page))
+  const darker = Math.min(luminance(muted), luminance(page))
+  const ratio = (lighter + 0.05) / (darker + 0.05)
+
+  assert.ok(ratio >= 4.5, `Light muted contrast must be at least 4.5:1, received ${ratio}`)
+})
+
+test('Dark brand button text keeps WCAG AA contrast on normal and hover surfaces', () => {
+  const css = readFileSync(new URL('../docs/.vitepress/theme/style.css', import.meta.url), 'utf8')
+  const rootTokens = css.match(/:root \{([^}]+)\}/)?.[1] ?? ''
+  const darkTokens = css.match(/\.dark \{([^}]+)\}/)?.[1] ?? ''
+  const buttonMapping = rootTokens.match(/--vp-button-brand-text:\s*([^;]+)/)?.[1]?.trim() ?? ''
+  const text = darkTokens.match(/--fenglan-text-on-brand:\s*(#[0-9a-f]{6})/i)?.[1] ?? ''
+  const surfaces = [
+    darkTokens.match(/--fenglan-brand:\s*(#[0-9a-f]{6})/i)?.[1] ?? '',
+    darkTokens.match(/--fenglan-brand-hover:\s*(#[0-9a-f]{6})/i)?.[1] ?? '',
+  ]
+  const luminance = (hex) => {
+    const channels = hex.slice(1).match(/../g)?.map((pair) => Number.parseInt(pair, 16) / 255) ?? []
+    const linear = channels.map((channel) =>
+      channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4,
+    )
+    return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+  }
+  const contrast = (first, second) => {
+    const lighter = Math.max(luminance(first), luminance(second))
+    const darker = Math.min(luminance(first), luminance(second))
+    return (lighter + 0.05) / (darker + 0.05)
+  }
+
+  assert.equal(buttonMapping, 'var(--fenglan-text-on-brand)')
+  assert.match(text, /^#[0-9a-f]{6}$/i)
+  for (const surface of surfaces) {
+    const ratio = contrast(text, surface)
+    assert.ok(ratio >= 4.5, `Dark brand button contrast must be at least 4.5:1, received ${ratio}`)
+  }
 })
 
 test('mobile appearance switch exposes a 44px target around the restrained track', () => {
