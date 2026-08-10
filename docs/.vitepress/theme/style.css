@@ -119,259 +119,6 @@ body {
   background: var(--fenglan-surface-page);
 }
 
-/* 极淡远山雾气 — 仅首页 Hero 区域 */
-.VPHero {
-  position: relative;
-  overflow: hidden;
-}
-
-.VPHero::after {
-  content: '';
-  position: absolute;
-  right: -10%;
-  top: 5%;
-  width: 55%;
-  height: 90%;
-  background:
-    /* 远山轮廓 */
-    radial-gradient(ellipse 70% 30% at 70% 75%, rgba(47, 111, 89, 0.05) 0%, transparent 70%),
-    radial-gradient(ellipse 55% 20% at 80% 65%, rgba(47, 111, 89, 0.04) 0%, transparent 70%),
-    /* 雾气 */
-    radial-gradient(ellipse 90% 50% at 60% 50%, rgba(47, 111, 89, 0.03) 0%, transparent 60%),
-    /* 最远景 */
-    radial-gradient(ellipse 40% 15% at 85% 80%, rgba(38, 58, 48, 0.04) 0%, transparent 70%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.dark .VPHero::after {
-  background:
-    radial-gradient(ellipse 70% 30% at 70% 75%, rgba(98, 169, 138, 0.04) 0%, transparent 70%),
-    radial-gradient(ellipse 55% 20% at 80% 65%, rgba(98, 169, 138, 0.03) 0%, transparent 70%),
-    radial-gradient(ellipse 90% 50% at 60% 50%, rgba(98, 169, 138, 0.02) 0%, transparent 60%),
-    radial-gradient(ellipse 40% 15% at 85% 80%, rgba(180, 210, 195, 0.03) 0%, transparent 70%);
-}
-
-
-/* ---------- Hero 首屏 ---------- */
-.VPHero {
-  padding-top: 80px !important;
-  padding-bottom: 80px !important;
-}
-
-/* 大标题 — 墨色渐变 */
-.VPHero .name {
-  font-size: 56px !important;
-  font-weight: 800 !important;
-  letter-spacing: 0.03em;
-  line-height: 1.2;
-  -webkit-text-fill-color: transparent;
-}
-
-/* 英文辅助文字 — FRONTEND NOTES */
-.VPHero .name::after {
-  content: 'FRONTEND NOTES';
-  display: block;
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.18em;
-  color: #89928C;
-  -webkit-text-fill-color: #89928C;
-  margin-top: 6px;
-  font-family: 'Inter', 'PingFang SC', sans-serif;
-}
-
-.VPHero .text {
-  font-size: 28px !important;
-  font-weight: 400;
-  color: #4A544F;
-  letter-spacing: 0.05em;
-}
-
-.VPHero .tagline {
-  font-size: 1rem !important;
-  color: #77807A;
-  margin-top: 14px;
-  letter-spacing: 0.03em;
-}
-
-/* 按钮区域 */
-.VPHero .actions {
-  margin-top: 38px;
-  gap: 14px;
-}
-
-.VPHero .actions .VPButton {
-  border-radius: var(--ink-radius);
-  padding: 0 30px;
-  font-size: 0.9375rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
-}
-
-/* 品牌按钮 */
-.VPHero .actions .VPButton.brand {
-  box-shadow: 0 4px 14px rgba(47, 111, 89, 0.14);
-}
-
-.VPHero .actions .VPButton.brand:hover {
-  box-shadow: 0 6px 20px rgba(47, 111, 89, 0.20);
-  transform: translateY(-0.125rem);
-}
-
-/* 次要按钮 — Ghost */
-.VPHero .actions .VPButton.alt {
-  border: 1px solid rgba(47, 111, 89, 0.45);
-  color: #2F6F59;
-  background: transparent;
-}
-
-.VPHero .actions .VPButton.alt:hover {
-  border-color: rgba(47, 111, 89, 0.65);
-  color: #275D4B;
-  background: rgba(47, 111, 89, 0.05);
-}
-
-/* Hero 与 Features 之间的分割 */
-.VPHero + .VPFeatures {
-  border-top: 1px solid rgba(38, 58, 48, 0.06);
-  padding-top: 56px;
-}
-
-
-/* ---------- Features 卡片 ---------- */
-.VPFeatures {
-  padding: 56px 0 72px;
-}
-
-.VPFeature {
-  background: var(--fenglan-surface-paper);
-  border: 1px solid rgba(38, 58, 48, 0.15);
-  border-radius: 12px;
-  padding: 26px 24px;
-  box-shadow: 0 4px 24px rgba(32, 50, 41, 0.08);
-  transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
-}
-
-.VPFeature:hover {
-  border-color: rgba(47, 111, 89, 0.22);
-  box-shadow: 0 10px 30px rgba(32, 50, 41, 0.08);
-  transform: translateY(-0.25rem);
-}
-
-/* 图标容器 */
-.VPFeature .icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 42px;
-  height: 42px;
-  background: #EDF3EF;
-  border: 1px solid rgba(47, 111, 89, 0.08);
-  border-radius: 10px;
-  margin-bottom: 16px;
-  font-size: 0; /* hide emoji fallback */
-}
-
-.VPFeature .icon img,
-.VPFeature .icon svg {
-  width: 22px;
-  height: 22px;
-  opacity: 0.85;
-}
-
-.VPFeature .title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #202A24;
-  margin-bottom: 6px;
-}
-
-.VPFeature .details {
-  font-size: 14px;
-  color: #66706A;
-  line-height: 1.75;
-}
-
-
-/* ---------- 导航栏 ---------- */
-.VPNav {
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-}
-
-.VPNavBar.has-sidebar {
-  background-color: rgba(247, 247, 242, 0.82);
-  border-bottom: 1px solid rgba(38, 58, 48, 0.06);
-  box-shadow: none;
-}
-
-.VPNavBar:not(.has-sidebar) {
-  background-color: rgba(247, 247, 242, 0.88);
-  border-bottom: 1px solid rgba(38, 58, 48, 0.06);
-  box-shadow: none;
-}
-
-/* 导航项 */
-.VPNavBarMenuLink {
-  color: #505A54;
-  font-size: 14px;
-  font-weight: 500;
-  transition: color 0.2s;
-}
-
-.VPNavBarMenuLink:hover,
-.VPNavBarMenuGroup .button:hover {
-  color: #2F6F59;
-}
-
-.VPNavBarMenuLink.active {
-  color: #2F6F59;
-  position: relative;
-}
-
-/* Active 底部细线 — 毛笔收锋 */
-.VPNavBarMenuLink.active::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 60%;
-  height: 2px;
-  background: #2F6F59;
-  border-radius: 1px;
-}
-
-/* Logo 标题 */
-.VPNavBarTitle .title {
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  font-size: 16px;
-  color: #1A2520;
-}
-
-/* 搜索框 */
-.VPLocalSearchBox .search-box {
-  background: rgba(255, 255, 255, 0.55);
-  border: 1px solid rgba(38, 58, 48, 0.08);
-  border-radius: 8px;
-  box-shadow: none;
-  transition: border-color 0.2s, background 0.2s;
-}
-
-.VPLocalSearchBox .search-box:hover {
-  border-color: rgba(47, 111, 89, 0.20);
-  background: rgba(255, 255, 255, 0.72);
-}
-
-.VPLocalSearchBox .search-box.focus {
-  border-color: rgba(47, 111, 89, 0.35);
-  background: rgba(255, 255, 255, 0.85);
-}
-
-
-/* ---------- 侧边栏 ---------- */
 /* ---------- Fenglan homepage composition ---------- */
 .VPHero {
   position: relative;
@@ -403,24 +150,34 @@ body {
   font-size: 3.5rem !important;
   font-weight: 800 !important;
   letter-spacing: 0.02em;
+  line-height: 1.2;
+  -webkit-text-fill-color: transparent;
 }
 
 .VPHero .name::after {
+  content: 'FRONTEND NOTES';
+  display: block;
   margin-top: 0.5rem;
   color: var(--fenglan-text-muted);
   font-size: 0.75rem;
+  font-family: 'Inter', 'PingFang SC', sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.18em;
   -webkit-text-fill-color: currentColor;
 }
 
 .VPHero .text {
   color: var(--fenglan-text-secondary);
   font-size: 1.75rem !important;
+  font-weight: 400;
+  letter-spacing: 0.05em;
 }
 
 .VPHero .tagline {
   margin-top: 1rem;
   color: var(--fenglan-text-muted);
   font-size: 1rem !important;
+  letter-spacing: 0.03em;
 }
 
 .VPHero .actions {
@@ -429,9 +186,11 @@ body {
 }
 
 .VPHero .actions .VPButton {
+  min-height: 2.75rem;
   border-radius: 0.5rem;
   padding-inline: 1.875rem;
   font-size: 0.9375rem;
+  font-weight: 500;
   transition: color 200ms ease, background-color 200ms ease,
     border-color 200ms ease, box-shadow 200ms ease, transform 200ms ease;
 }
@@ -498,6 +257,9 @@ body {
 }
 
 .VPFeature .icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 2.75rem;
   height: 2.75rem;
   margin-bottom: 1rem;
@@ -505,6 +267,7 @@ body {
   background: var(--fenglan-brand-soft);
   border: 1px solid var(--fenglan-border-subtle);
   border-radius: var(--fenglan-radius-sm);
+  font-size: 0;
 }
 
 .VPFeature .box {
@@ -543,11 +306,13 @@ body {
   margin-bottom: 0.5rem;
   color: var(--fenglan-text-primary);
   font-size: 1rem;
+  font-weight: 600;
 }
 
 .VPFeature .details {
   color: var(--fenglan-text-secondary);
   font-size: 0.875rem;
+  line-height: 1.75;
 }
 
 .VPNav {
@@ -559,11 +324,13 @@ body {
 .VPNavBar:not(.has-sidebar) {
   background-color: var(--fenglan-surface-elevated);
   border-bottom: 1px solid var(--fenglan-border-subtle);
+  box-shadow: none;
 }
 
 .VPNavBarMenuLink {
   color: var(--fenglan-text-secondary);
   font-size: 0.875rem;
+  font-weight: 500;
   transition: color 200ms ease;
 }
 
@@ -573,16 +340,27 @@ body {
   color: var(--fenglan-brand);
 }
 
+.VPNavBarMenuLink.active {
+  position: relative;
+}
+
 .VPNavBarMenuLink.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
   width: 1.5rem;
   height: 0.125rem;
   background: var(--fenglan-brand);
   border-radius: 0.125rem;
+  transform: translateX(-50%);
 }
 
 .VPNavBarTitle .title {
   color: var(--fenglan-text-primary);
   font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
 }
 
 .VPNavBarSearch .DocSearch-Button {
@@ -613,295 +391,6 @@ body {
 .VPNavBarSearch .DocSearch-Button-Key {
   color: currentColor;
 }
-
-.VPSidebar {
-  background-color: #F4F5F0;
-  border-right: 1px solid rgba(38, 58, 48, 0.06);
-}
-
-/* 分组标题 */
-.VPSidebarItem.level-0 > .item > .text,
-.VPSidebarItem.level-0 > .item > .indicator {
-  font-weight: 600;
-  color: #5F6963;
-  letter-spacing: 0.04em;
-  font-size: 0.8125rem;
-}
-
-.VPSidebarItem.level-0 > .item {
-  padding-bottom: 8px;
-  margin-bottom: 4px;
-  border-bottom: 1px solid rgba(38, 58, 48, 0.06);
-}
-
-/* 侧边栏链接 */
-.VPSidebarItem.level-1 > .item > .link > .text {
-  font-size: 14px;
-  color: var(--fenglan-text-secondary);
-}
-
-/* 活跃项 */
-.VPSidebarItem.level-1 > .item > .link:hover > .text {
-  color: var(--fenglan-brand);
-}
-
-
-/* ============================================
-   文档内容区
-   ============================================ */
-
-.VPDoc {
-  background: transparent;
-  border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(32, 50, 41, 0.07), 0 6px 20px rgba(32, 50, 41, 0.05);
-  border: 1px solid rgba(38, 58, 48, 0.12);
-}
-
-.VPDoc .content {
-  font-size: 0.9375rem;
-  line-height: 1.85;
-}
-
-/* 标题 */
-.vp-doc h1 {
-  font-size: 2em;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: #17231D;
-  border-bottom: 2px solid rgba(38, 58, 48, 0.08);
-  padding-bottom: 0.3em;
-}
-
-.vp-doc h2 {
-  font-size: 1.5em;
-  font-weight: 650;
-  letter-spacing: 0.01em;
-  color: #1A2A22;
-  margin-top: 2.5em;
-  padding-bottom: 0.25em;
-  border-bottom: 1px solid rgba(38, 58, 48, 0.07);
-}
-
-.vp-doc h3 {
-  font-size: 1.18em;
-  font-weight: 600;
-  color: #202A24;
-  margin-top: 2em;
-}
-
-.vp-doc h4 {
-  font-size: 1.05em;
-  font-weight: 600;
-  color: #2F6F59;
-  margin-top: 1.8em;
-}
-
-.vp-doc p {
-  margin: 1em 0;
-  color: #3A403C;
-}
-
-/* 链接 — 下滑线渐入 */
-.vp-doc a {
-  color: #2F6F59;
-  text-decoration: none;
-  background-image: linear-gradient(#2F6F59, #2F6F59);
-  background-size: 0% 0.0625rem;
-  background-position: 0% 100%;
-  background-repeat: no-repeat;
-  transition: background-size 0.25s ease;
-  padding-bottom: 0.0625rem;
-}
-
-.vp-doc a:hover {
-  background-size: 100% 0.0625rem;
-}
-
-.vp-doc strong {
-  color: #17231D;
-  font-weight: 650;
-}
-
-/* 列表 */
-.vp-doc ul,
-.vp-doc ol {
-  padding-left: 1.5em;
-  line-height: 1.85;
-  color: #3A403C;
-}
-
-.vp-doc li {
-  margin: 0.3em 0;
-}
-
-.vp-doc hr {
-  border: none;
-  border-top: 1px solid rgba(38, 58, 48, 0.07);
-  margin: 2.5em 0;
-}
-
-
-/* ---------- 代码块 ---------- */
-.vp-doc div[class*='language-'] {
-  border-radius: 10px;
-  border: 1px solid rgba(38, 58, 48, 0.07);
-  box-shadow: 0 0.0625rem 0.1875rem rgba(32, 50, 41, 0.03);
-  margin: 1.5em 0;
-}
-
-.vp-doc div[class*='language-'] .lang {
-  color: #8B938E;
-  font-size: 12px;
-}
-
-/* 行内代码 */
-.vp-doc :not(pre) > code {
-  background: rgba(47, 111, 89, 0.06);
-  color: #2F6F59;
-  padding: 0.125rem 0.4375rem;
-  border-radius: 4px;
-  font-size: 0.9em;
-  border: 1px solid rgba(47, 111, 89, 0.08);
-}
-
-
-/* ---------- 引用块 ---------- */
-.vp-doc blockquote {
-  border-left: 4px solid #2F6F59;
-  background: rgba(47, 111, 89, 0.04);
-  border-radius: 0 6px 6px 0;
-  padding: 14px 20px;
-  margin: 1.5em 0;
-  color: #4A544F;
-}
-
-.vp-doc blockquote p {
-  margin: 0.4em 0;
-  color: #4A544F;
-}
-
-.vp-doc blockquote strong {
-  color: #275D4B;
-}
-
-
-/* ---------- 表格 ---------- */
-.vp-doc table {
-  display: table;
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  border: 1px solid rgba(38, 58, 48, 0.08);
-  border-radius: 10px;
-  overflow: hidden;
-  margin: 1.5em 0;
-}
-
-.vp-doc th {
-  background: #F4F5F0;
-  font-weight: 600;
-  color: #202A24;
-  font-size: 14px;
-  padding: 12px 16px;
-  text-align: left;
-  border-bottom: 1px solid rgba(38, 58, 48, 0.10);
-}
-
-.vp-doc td {
-  padding: 10px 16px;
-  font-size: 14px;
-  color: #3A403C;
-  border-bottom: 1px solid rgba(38, 58, 48, 0.05);
-}
-
-.vp-doc tr:last-child td {
-  border-bottom: none;
-}
-
-.vp-doc tr:hover td {
-  background: rgba(47, 111, 89, 0.02);
-}
-
-
-/* ---------- 自定义容器 ---------- */
-.vp-doc .custom-block {
-  border-radius: 8px;
-  padding: 16px 20px;
-  margin: 1.5em 0;
-  border-left-width: 4px;
-  border-left-style: solid;
-  font-size: 14px;
-}
-
-.vp-doc .custom-block.tip {
-  border-color: #54766A;
-  background: rgba(84, 118, 106, 0.05);
-}
-
-.vp-doc .custom-block.warning {
-  border-color: #9B7B4F;
-  background: rgba(155, 123, 79, 0.05);
-}
-
-.vp-doc .custom-block.danger {
-  border-color: #B06A6A;
-  background: rgba(176, 106, 106, 0.05);
-}
-
-.vp-doc .custom-block.info {
-  border-color: #5F7D8E;
-  background: rgba(95, 125, 142, 0.05);
-}
-
-.vp-doc .custom-block-title {
-  font-weight: 600;
-  margin-bottom: 8px;
-  color: #202522;
-}
-
-
-/* ---------- 大纲（右侧目录）---------- */
-.VPDocAsideOutline .outline-link {
-  color: #66706A;
-}
-
-.VPDocAsideOutline .outline-link.active {
-  color: #2F6F59;
-}
-
-.VPDocAsideOutline .outline-link:hover {
-  color: #2F6F59;
-}
-
-
-/* ---------- 上一页/下一页 ---------- */
-.VPDocFooter .pager-link {
-  border: 1px solid rgba(38, 58, 48, 0.08);
-  border-radius: 8px;
-}
-
-.VPDocFooter .pager-link:hover {
-  border-color: rgba(47, 111, 89, 0.30);
-}
-
-.VPDocFooter .pager-link:hover .title {
-  color: #2F6F59;
-}
-
-
-/* ---------- 页脚 ---------- */
-.VPFooter {
-  border-top: 1px solid rgba(38, 58, 48, 0.06) !important;
-  padding: 28px 0 !important;
-  background: transparent;
-}
-
-.VPFooter .message,
-.VPFooter .copyright {
-  color: #8B938E;
-  font-size: 0.8125rem;
-}
-
 
 /* ---------- 滚动条 ---------- */
 ::-webkit-scrollbar {
@@ -969,46 +458,8 @@ body {
   --vp-c-danger-3: #9E6060;
 }
 
-.dark body {
-  background: var(--fenglan-surface-page);
-}
-
-.dark .VPNavBar.has-sidebar,
-.dark .VPNavBar:not(.has-sidebar) {
-  background-color: var(--fenglan-surface-elevated);
-  border-bottom: 1px solid var(--fenglan-border-subtle);
-}
-
-.dark .VPSidebar {
-  background-color: var(--fenglan-surface-subtle);
-  border-right: 1px solid var(--fenglan-border-subtle);
-}
-
-.dark .VPLocalSearchBox .search-box {
-  background: var(--fenglan-surface-paper);
-  border-color: var(--fenglan-border-subtle);
-}
-
-.dark .VPLocalSearchBox .search-box:hover {
-  background: var(--fenglan-surface-elevated);
-  border-color: var(--fenglan-border-interactive);
-}
-
-.dark .VPDoc {
-  background: transparent;
-  border-color: transparent;
-  box-shadow: none;
-}
-
-.dark .VPFeature {
-  background: var(--fenglan-surface-paper);
-  border-color: var(--fenglan-border-subtle);
-}
-
-.dark .VPFeature .icon {
-  color: var(--fenglan-brand);
-  background: var(--fenglan-brand-soft);
-  border-color: var(--fenglan-border-subtle);
+.dark .VPHero::after {
+  opacity: 0.05;
 }
 
 .dark .VPFeature .icon img,
@@ -1016,45 +467,6 @@ body {
   filter: invert(1);
   opacity: 0.72;
 }
-
-.dark .vp-doc :not(pre) > code {
-  color: var(--fenglan-brand);
-  background: var(--fenglan-brand-soft);
-  border-color: var(--fenglan-border-subtle);
-}
-
-.dark .vp-doc h1,
-.dark .vp-doc h2,
-.dark .vp-doc h3,
-.dark .vp-doc strong { color: var(--fenglan-text-primary); }
-.dark .vp-doc h4 { color: var(--fenglan-brand); }
-.dark .vp-doc p,
-.dark .vp-doc ul,
-.dark .vp-doc ol,
-.dark .vp-doc blockquote,
-.dark .vp-doc td { color: var(--fenglan-text-secondary); }
-.dark .vp-doc td { border-color: var(--fenglan-border-subtle); }
-.dark .vp-doc th {
-  background: var(--fenglan-surface-subtle);
-  border-color: var(--fenglan-border-subtle);
-}
-.dark .vp-doc tr:hover td { background: var(--fenglan-brand-soft); }
-.dark .vp-doc .custom-block.tip { background: var(--vp-c-tip-2); }
-.dark .vp-doc .custom-block.warning { background: var(--vp-c-warning-2); }
-.dark .vp-doc .custom-block.danger { background: var(--vp-c-danger-2); }
-.dark .vp-doc .custom-block.info { background: var(--vp-c-info-2); }
-
-/* 暗色导航栏文字 */
-.dark .VPNavBarMenuLink { color: var(--fenglan-text-secondary); }
-.dark .VPNavBarMenuLink.active { color: var(--fenglan-brand); }
-.dark .VPNavBarMenuLink.active::after { background: var(--fenglan-brand); }
-.dark .VPNavBarTitle .title { color: var(--fenglan-text-primary); }
-.dark .VPHero .name::after { color: var(--fenglan-text-secondary); }
-.dark .VPHero .text { color: var(--fenglan-text-secondary); }
-.dark .VPHero .tagline { color: var(--fenglan-text-muted); }
-.dark .VPFeature .title { color: var(--fenglan-text-primary); }
-.dark .VPFeature .details { color: var(--fenglan-text-secondary); }
-.dark .VPSidebarItem.level-0 > .item > .text { color: var(--fenglan-text-secondary); }
 
 
 /* ---------- Fenglan reading and utility surfaces ---------- */
@@ -1242,7 +654,8 @@ body {
   color: var(--fenglan-text-muted);
 }
 
-.VPSidebarItem.level-1 .link .text {
+.VPSidebarItem.level-1 > .item > .link > .text {
+  color: var(--fenglan-text-secondary);
   font-size: 0.875rem;
 }
 
@@ -1370,7 +783,10 @@ body {
 }
 
 .vp-doc div[class*='language-'] {
+  max-width: 100%;
   margin: 1.5em 0;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
   background: var(--vp-code-block-bg);
   border: 1px solid var(--fenglan-border-subtle);
   border-radius: var(--fenglan-radius-md);
@@ -1429,10 +845,12 @@ body {
 }
 
 .vp-doc table {
-  display: table;
+  display: block;
   width: 100%;
+  max-width: 100%;
   margin: 1.5em 0;
-  overflow: hidden;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
   background: var(--fenglan-surface-paper);
   border: 1px solid var(--fenglan-border-subtle);
   border-collapse: separate;
@@ -1587,23 +1005,74 @@ body {
    ============================================ */
 
 @media (max-width: 768px) {
+  .VPHero {
+    padding-block: 3.5rem 3rem !important;
+  }
+
+  .VPHero::after {
+    inset: auto -15% 0 auto;
+    width: 42%;
+    height: 55%;
+    opacity: 0.05;
+  }
+
   .VPDoc .content-container {
+    min-width: 0;
+    max-width: 100%;
     padding: 1.5rem;
   }
 
   .VPHero .name {
-    font-size: 38px !important;
+    font-size: 2.375rem !important;
   }
 
   .VPHero .text {
-    font-size: 22px !important;
+    font-size: 1.375rem !important;
   }
 
   .VPHero .tagline {
     font-size: 0.9375rem !important;
   }
 
+  .VPHero .actions .VPButton {
+    min-height: 2.75rem;
+  }
+
   .VPFeature {
+    min-width: 0;
+    max-width: 100%;
     padding: 0;
+  }
+
+  .VPFeature .box,
+  .VPDoc .content,
+  .vp-doc {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .VPFeature .title,
+  .VPFeature .details,
+  .vp-doc {
+    overflow-wrap: anywhere;
+  }
+
+  .vp-doc th,
+  .vp-doc td {
+    white-space: nowrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .VPFeature,
+  .VPButton,
+  .VPNavBarMenuLink,
+  .VPBackToTop {
+    transition-duration: 0.01ms !important;
+  }
+
+  .VPFeature:hover,
+  .VPButton:hover {
+    transform: none;
   }
 }
