@@ -1041,6 +1041,23 @@ body {
    小屏幕适配
    ============================================ */
 
+@media (max-width: 64rem) {
+  .VPNav {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .VPNav > .VPNavBar {
+    backdrop-filter: blur(0.875rem);
+    -webkit-backdrop-filter: blur(0.875rem);
+  }
+
+  .VPNavBar.screen-open + .VPNavScreen {
+    height: calc(100dvh - var(--vp-nav-height) - var(--vp-layout-top-height, 0rem));
+    overflow-y: auto;
+  }
+}
+
 @media (min-width: 48rem) and (max-width: 64rem) {
   .VPNavBar .VPNavBarMenu,
   .VPNavBar .VPFlyout.VPNavBarExtra {
@@ -1051,7 +1068,7 @@ body {
     display: flex;
   }
 
-  .VPNav .VPNavScreen {
+  .VPNavBar.screen-open + .VPNavScreen {
     display: block;
   }
 }

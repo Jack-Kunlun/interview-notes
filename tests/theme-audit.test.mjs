@@ -66,7 +66,25 @@ test('tablet navigation collapses desktop controls into the existing nav screen'
     /\.VPNavBar \.VPNavBarMenu,\s*\.VPNavBar \.VPFlyout\.VPNavBarExtra \{\s*display: none/,
   )
   assert.match(tabletRules, /\.VPNavBar \.VPNavBarHamburger \{\s*display: flex/)
-  assert.match(tabletRules, /\.VPNav \.VPNavScreen \{\s*display: block/)
+  assert.match(tabletRules, /\.VPNavBar\.screen-open \+ \.VPNavScreen \{\s*display: block/)
+})
+
+test('open compact nav screen escapes the blurred nav and fills the remaining viewport', () => {
+  const css = readFileSync(new URL('../docs/.vitepress/theme/style.css', import.meta.url), 'utf8')
+  const compactStart = css.indexOf('@media (max-width: 64rem)')
+  const nextMedia = css.indexOf('@media', compactStart + 1)
+  const compactRules = compactStart === -1 ? '' : css.slice(compactStart, nextMedia)
+  const openScreen = compactRules.match(
+    /\.VPNavBar\.screen-open \+ \.VPNavScreen \{[^}]+\}/,
+  )?.[0] ?? ''
+
+  assert.match(compactRules, /\.VPNav \{[^}]*backdrop-filter: none/)
+  assert.match(compactRules, /\.VPNav > \.VPNavBar \{[^}]*backdrop-filter: blur\(0\.875rem\)/)
+  assert.match(
+    openScreen,
+    /height: calc\(100dvh - var\(--vp-nav-height\) - var\(--vp-layout-top-height, 0rem\)\)/,
+  )
+  assert.match(openScreen, /overflow-y: auto/)
 })
 
 test('Dark muted text keeps WCAG AA contrast against the page surface', () => {
