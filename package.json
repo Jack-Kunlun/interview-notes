@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "vitepress dev docs",
     "build": "vitepress build docs",
-    "preview": "vitepress preview docs"
+    "preview": "vitepress preview docs",
+    "test:theme:unit": "node --test tests/theme-audit.test.mjs",
+    "test:theme": "node scripts/theme-audit.mjs"
   },
   "devDependencies": {
     "vitepress": "^1.6.0"
