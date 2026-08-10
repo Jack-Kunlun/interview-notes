@@ -661,6 +661,8 @@ body {
 
 .VPSidebarItem .link:hover .text,
 .VPSidebarItem .link:focus-visible .text,
+.VPSidebarItem.level-1 > .item > .link:hover > .text,
+.VPSidebarItem.level-1 > .item > .link:focus-visible > .text,
 .VPSidebarItem.level-1.is-active > .item > .link > .text {
   color: var(--fenglan-brand);
 }
@@ -1072,7 +1074,8 @@ body {
   }
 
   .VPFeature:hover,
-  .VPButton:hover {
+  .VPButton:hover,
+  .VPHero .actions .VPButton.brand:hover {
     transform: none;
   }
 }
