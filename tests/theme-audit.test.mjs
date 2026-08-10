@@ -55,6 +55,53 @@ test('reduced motion overrides the higher-specificity Hero brand hover transform
   assert.match(reducedHoverRule, /transform: none/)
 })
 
+test('tablet navigation collapses desktop controls into the existing nav screen', () => {
+  const css = readFileSync(new URL('../docs/.vitepress/theme/style.css', import.meta.url), 'utf8')
+  const tabletStart = css.indexOf('@media (min-width: 48rem) and (max-width: 64rem)')
+  const nextMedia = css.indexOf('@media', tabletStart + 1)
+  const tabletRules = tabletStart === -1 ? '' : css.slice(tabletStart, nextMedia)
+
+  assert.match(
+    tabletRules,
+    /\.VPNavBar \.VPNavBarMenu,\s*\.VPNavBar \.VPFlyout\.VPNavBarExtra \{\s*display: none/,
+  )
+  assert.match(tabletRules, /\.VPNavBar \.VPNavBarHamburger \{\s*display: flex/)
+  assert.match(tabletRules, /\.VPNav \.VPNavScreen \{\s*display: block/)
+})
+
+test('Dark muted text keeps WCAG AA contrast against the page surface', () => {
+  const css = readFileSync(new URL('../docs/.vitepress/theme/style.css', import.meta.url), 'utf8')
+  const darkTokens = css.match(/\.dark \{([^}]+)\}/)?.[1] ?? ''
+  const muted = darkTokens.match(/--fenglan-text-muted:\s*(#[0-9a-f]{6})/i)?.[1] ?? ''
+  const page = darkTokens.match(/--fenglan-surface-page:\s*(#[0-9a-f]{6})/i)?.[1] ?? ''
+  const luminance = (hex) => {
+    const channels = hex.slice(1).match(/../g)?.map((pair) => Number.parseInt(pair, 16) / 255) ?? []
+    const linear = channels.map((channel) =>
+      channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4,
+    )
+    return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+  }
+  const ratio = (luminance(muted) + 0.05) / (luminance(page) + 0.05)
+
+  assert.ok(ratio >= 4.5, `Dark muted contrast must be at least 4.5:1, received ${ratio}`)
+})
+
+test('mobile appearance switch exposes a 44px target around the restrained track', () => {
+  const css = readFileSync(new URL('../docs/.vitepress/theme/style.css', import.meta.url), 'utf8')
+  const target = css.match(
+    /\.VPNavScreenAppearance \.VPSwitchAppearance \{[^}]+\}/,
+  )?.[0] ?? ''
+  const track = css.match(
+    /\.VPNavScreenAppearance \.VPSwitchAppearance::before \{[^}]+\}/,
+  )?.[0] ?? ''
+
+  assert.match(target, /width: 2\.75rem/)
+  assert.match(target, /height: 2\.75rem/)
+  assert.match(target, /background: transparent/)
+  assert.match(track, /width: 2\.5rem/)
+  assert.match(track, /height: 1\.375rem/)
+})
+
 test('level-1 sidebar selectors match VitePress active ancestors and use semantic tokens', () => {
   const css = readFileSync(new URL('../docs/.vitepress/theme/style.css', import.meta.url), 'utf8')
   const inactiveText = css.match(

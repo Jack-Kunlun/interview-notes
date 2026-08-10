@@ -436,7 +436,7 @@ body {
   --fenglan-surface-elevated: rgba(24, 32, 28, 0.96);
   --fenglan-text-primary: #e8ece9;
   --fenglan-text-secondary: #9ba69f;
-  --fenglan-text-muted: #748078;
+  --fenglan-text-muted: #76827a;
   --fenglan-border-subtle: rgba(180, 210, 195, 0.10);
   --fenglan-border-interactive: rgba(98, 169, 138, 0.38);
   --fenglan-brand: #62a98a;
@@ -497,6 +497,41 @@ body {
 .VPNavScreen {
   color: var(--fenglan-text-secondary);
   background: var(--fenglan-surface-page);
+}
+
+.VPNavScreenAppearance .VPSwitchAppearance {
+  width: 2.75rem;
+  height: 2.75rem;
+  background: transparent;
+  border-color: transparent;
+  border-radius: var(--fenglan-radius-md);
+}
+
+.VPNavScreenAppearance .VPSwitchAppearance::before {
+  content: '';
+  position: absolute;
+  top: 0.6875rem;
+  left: 0.125rem;
+  width: 2.5rem;
+  height: 1.375rem;
+  background: var(--vp-input-switch-bg-color);
+  border: 1px solid var(--vp-input-border-color);
+  border-radius: 0.6875rem;
+  pointer-events: none;
+}
+
+.VPNavScreenAppearance .VPSwitchAppearance .check {
+  top: 0.75rem;
+  left: 0.1875rem;
+  z-index: 1;
+}
+
+.VPNavScreenAppearance .VPSwitchAppearance:hover {
+  border-color: transparent;
+}
+
+.VPNavScreenAppearance .VPSwitchAppearance:hover::before {
+  border-color: var(--fenglan-brand);
 }
 
 .VPNavScreenMenuLink,
@@ -1005,6 +1040,21 @@ body {
 /* ============================================
    小屏幕适配
    ============================================ */
+
+@media (min-width: 48rem) and (max-width: 64rem) {
+  .VPNavBar .VPNavBarMenu,
+  .VPNavBar .VPFlyout.VPNavBarExtra {
+    display: none;
+  }
+
+  .VPNavBar .VPNavBarHamburger {
+    display: flex;
+  }
+
+  .VPNav .VPNavScreen {
+    display: block;
+  }
+}
 
 @media (max-width: 768px) {
   .VPHero {
