@@ -66,14 +66,14 @@ import {
   findOddPixelValues,
 } from '../scripts/theme-audit.mjs'
 
-test('allows 1px hairlines, even px values, and rem values', () => {
+test('allows 1px border hairlines, even px values, and rem values', () => {
   const css = '.a{border:1px solid;gap:8px;transform:translateY(-0.25rem)}'
   assert.deepEqual(findOddPixelValues(css), [])
 })
 
-test('rejects odd px values other than 1px', () => {
-  const findings = findOddPixelValues('.a{padding:3px;border-radius:5px}')
-  assert.deepEqual(findings.map(({ value }) => value), ['3px', '5px'])
+test('rejects 1px outside borders and all other odd px values', () => {
+  const findings = findOddPixelValues('.a{padding:1px 3px;border-radius:5px}')
+  assert.deepEqual(findings.map(({ value }) => value), ['1px', '3px', '5px'])
 })
 
 test('finds legacy palette values case-insensitively', () => {
@@ -131,7 +131,7 @@ export const FORBIDDEN_COLORS = [
 ]
 ```
 
-Implement line-aware regex scanning. `findOddPixelValues` must allow only absolute numeric value `1`, even integers, and any non-pixel unit. `findFixedSvgColors` must reject hex/rgb values in `stroke` or `fill`, while allowing `none` and `currentColor`.
+Implement line-aware declaration scanning. `findOddPixelValues` must allow `1px` only when the declaration property starts with `border`; all other pixel values must be even integers, and non-pixel units remain allowed. `findFixedSvgColors` must reject hex/rgb values in `stroke` or `fill`, while allowing `none` and `currentColor`.
 
 The CLI must audit:
 
