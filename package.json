@@ -2,6 +2,8 @@
   "name": "interview-notes",
   "version": "1.0.0",
   "private": true,
+  "description": "前端面试笔记知识库 - 基于 VitePress 构建，涵盖 JavaScript、TypeScript、Vue、React、工程化、跨端开发等 23 个技术方向",
+  "license": "MIT",
   "scripts": {
     "dev": "vitepress dev docs",
     "build": "vitepress build docs",
