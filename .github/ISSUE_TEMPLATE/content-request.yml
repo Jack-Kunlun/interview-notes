@@ -1,0 +1,55 @@
+name: 内容请求
+description: 建议新增知识方向、面试题或技术主题
+title: "[内容请求] "
+labels: ["content-request", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢提出内容建议！请描述你希望新增的知识方向。
+
+  - type: input
+    id: topic
+    attributes:
+      label: 建议主题
+      description: 你希望新增什么技术方向或知识内容？
+      placeholder: "Next.js App Router / React Server Components / Vue Vapor"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: 所属分类
+      options:
+        - 编程语言 (core)
+        - 框架生态 (framework)
+        - 工程体系 (engineering)
+        - 网络与服务端 (fullstack)
+        - 面试题 (interview)
+        - 面试准备 (preparation)
+        - 其他
+    validations:
+      required: true
+
+  - type: textarea
+    id: reason
+    attributes:
+      label: 为什么需要
+      description: 这个主题为什么值得加入？面试中常见吗？技术生态中重要吗？
+      placeholder: "这个主题在近期面试中经常被问到……"
+    validations:
+      required: true
+
+  - type: textarea
+    id: outline
+    attributes:
+      label: 建议大纲
+      description: 你希望覆盖哪些子主题？如果有的话。
+      placeholder: |
+        1. 基本概念
+        2. 核心原理
+        3. 常见面试题
+        4. 实践示例
+    validations:
+      required: false

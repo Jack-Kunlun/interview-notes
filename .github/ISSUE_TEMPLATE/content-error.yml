@@ -1,0 +1,59 @@
+name: 内容错误
+description: 报告技术内容错误、过时信息或示例代码问题
+title: "[内容错误] "
+labels: ["content-error", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢帮助提升内容质量！请描述你发现的具体错误。
+
+  - type: input
+    id: page
+    attributes:
+      label: 涉及页面
+      description: 哪个页面的内容有误？请提供文件路径或在线页面链接。
+      placeholder: "docs/core/javascript.md 或 https://www.kunlunmarket.work/core/javascript"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: 错误类型
+      options:
+        - 技术结论错误
+        - API / 版本已过时
+        - 示例代码有问题
+        - 错别字 / 表述不清
+        - 链接失效
+        - 其他
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述
+      description: 当前内容哪里有误？请引用原文。
+      placeholder: "原文写的是……，但实际上……"
+    validations:
+      required: true
+
+  - type: textarea
+    id: correction
+    attributes:
+      label: 建议修正
+      description: 如果你有正确的表述，请写下来。
+      placeholder: "应该改为……"
+    validations:
+      required: false
+
+  - type: textarea
+    id: reference
+    attributes:
+      label: 参考资料
+      description: 支持你修正建议的官方文档、规范或权威来源。
+      placeholder: "MDN: https://developer.mozilla.org/..."
+    validations:
+      required: false

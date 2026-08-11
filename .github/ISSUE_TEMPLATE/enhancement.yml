@@ -1,0 +1,20 @@
+name: 功能改进
+description: 建议改进项目工程、UI、文档体验或贡献流程
+title: "[改进] "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: 改进描述
+      description: 你希望改进什么？当前有什么问题？
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: 建议方案
+      description: 如果你有具体的改进方案，请描述。
+    validations:
+      required: false
