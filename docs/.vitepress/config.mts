@@ -7,7 +7,7 @@ export default defineConfig({
   lang: 'zh-CN',
 
   head: [
-    ['meta', { name: 'theme-color', content: '#3d8b5e' }],
+    ['meta', { name: 'theme-color', content: '#F7F7F2' }],
   ],
 
   themeConfig: {
