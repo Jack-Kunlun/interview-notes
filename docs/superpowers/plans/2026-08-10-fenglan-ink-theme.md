@@ -219,7 +219,7 @@ Expected: FAIL with findings such as `stroke="#2F6F59"` in `docs/public/icons/*.
 
 For every file in `docs/public/icons/`, preserve `viewBox`, path geometry, `stroke-width`, line caps, and joins. Replace presentation colors with the same pattern:
 
-```svg
+```xml
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
   <!-- preserve the file's existing geometry -->
 </svg>
