@@ -168,7 +168,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 20, cache: 'pnpm' }
+        with: { node-version: 24, cache: 'pnpm' }
       - run: pnpm install --frozen-lockfile && pnpm build
       - name: Deploy
         uses: easingthemes/ssh-deploy@v5
